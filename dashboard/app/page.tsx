@@ -1,0 +1,256 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { RefreshCw } from "lucide-react";
+
+import Sidebar, { PageId } from "@/components/Sidebar";
+import DateRangePicker from "@/components/DateRangePicker";
+import OverviewSection from "@/components/sections/OverviewSection";
+import MetaAdsSection from "@/components/sections/MetaAdsSection";
+import CRMSection from "@/components/sections/CRMSection";
+import AnalyticsSection from "@/components/sections/AnalyticsSection";
+
+import { DateRange, MetaSummaryByAccount, MergedData } from "@/types";
+import { getDefaultDateRange, toISODate, findBestMatch } from "@/lib/utils";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface CRMResponse {
+  total_leads: number;
+  por_situacao: Record<string, number>;
+  por_origem: Record<string, number>;
+  por_empreendimento: Array<{
+    empreendimento: string;
+    total_leads: number;
+    atendimento: number;
+    reserva: number;
+    ganhos: number;
+    perdas: number;
+    cancelados: number;
+    conversao_rate: number;
+  }>;
+}
+
+interface AnalyticsData {
+  tempo_por_situacao: Array<{
+    situacao: string;
+    count: number;
+    media_dias: number;
+    max_dias: number;
+    parados_3dias: number;
+    parados_7dias: number;
+    parados_15dias: number;
+  }>;
+  leads_parados: Array<{
+    id: number;
+    nome: string;
+    situacao: string;
+    empreendimento: string;
+    corretor: string;
+    origem: string;
+    data_cadastro: string | null;
+    dias_parado: number;
+    ultima_atualizacao: string | null;
+    dias_sem_contato: number;
+  }>;
+  motivos_descarte: Array<{
+    motivo: string;
+    descricao: string;
+    submotivo: string;
+    empreendimento: string;
+    count: number;
+  }>;
+  corretores_parados: Array<{
+    corretor: string;
+    total_parados: number;
+    avg_dias: number;
+    max_dias: number;
+    por_situacao: Record<string, number>;
+  }>;
+  resumo_parados: {
+    total_parados_3d: number;
+    total_parados_7d: number;
+    total_parados_15d: number;
+    avg_dias_sem_contato: number;
+  };
+}
+
+const PAGE_TITLES: Record<PageId, string> = {
+  overview:  "Visão Geral",
+  meta:      "Meta Ads",
+  crm:       "CRM / Leads",
+  analytics: "Operacional",
+};
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export default function Dashboard() {
+  const [activePage, setActivePage]   = useState<PageId>("overview");
+  const [sidebarCollapsed, setSidebar] = useState(false);
+  const [dateRange, setDateRange]     = useState<DateRange>(getDefaultDateRange());
+
+  const [metaData, setMetaData]       = useState<MetaSummaryByAccount[]>([]);
+  const [crmData, setCrmData]         = useState<CRMResponse | null>(null);
+  const [analyticsData, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [stuckThreshold, setStuck]    = useState(3);
+  const [loading, setLoading]         = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  const fetchData = useCallback(async (range: DateRange, threshold: number) => {
+    setLoading(true);
+    const start = toISODate(range.start);
+    const end   = toISODate(range.end);
+    try {
+      const [mr, cr, ar] = await Promise.all([
+        fetch(`/api/meta?date_start=${start}&date_end=${end}`),
+        fetch(`/api/crm?date_start=${start}&date_end=${end}`),
+        fetch(`/api/analytics?date_start=${start}&date_end=${end}&stuck_days=${threshold}`),
+      ]);
+      const [meta, crm, analytics] = await Promise.all([
+        mr.ok ? mr.json() : [],
+        cr.ok ? cr.json() : null,
+        ar.ok ? ar.json() : null,
+      ]);
+      setMetaData(meta);
+      setCrmData(crm);
+      setAnalytics(analytics);
+      setLastUpdated(new Date());
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData(dateRange, stuckThreshold);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Merge Meta + CRM with fuzzy name matching
+  const crmEmpNames = crmData?.por_empreendimento.map(c => c.empreendimento) ?? [];
+  const mergedData: MergedData[] = metaData.map(meta => {
+    let crm = crmData?.por_empreendimento.find(
+      c => c.empreendimento.toLowerCase().trim() === meta.crm_key.toLowerCase().trim()
+    );
+    if (!crm && crmEmpNames.length > 0) {
+      const { match } = findBestMatch(meta.crm_key, crmEmpNames);
+      if (match) crm = crmData?.por_empreendimento.find(c => c.empreendimento === match);
+    }
+    return {
+      empreendimento:   meta.crm_key,
+      crm_key:          meta.crm_key,
+      ad_account_name:  meta.ad_account_name,
+      meta_spend:       meta.total_spend,
+      meta_impressions: meta.total_impressions,
+      meta_clicks:      meta.total_clicks,
+      meta_leads:       meta.total_leads,
+      meta_cpl:         meta.cost_per_lead,
+      meta_ctr:         meta.avg_ctr,
+      meta_cpc:         meta.avg_cpc,
+      crm_leads:        crm?.total_leads    ?? 0,
+      crm_atendimento:  crm?.atendimento    ?? 0,
+      crm_reserva:      crm?.reserva        ?? 0,
+      crm_ganhos:       crm?.ganhos         ?? 0,
+      crm_perdas:       crm?.perdas         ?? 0,
+      crm_conversao:    crm?.conversao_rate ?? 0,
+      lead_conversion:  meta.total_leads > 0
+        ? ((crm?.total_leads ?? 0) / meta.total_leads) * 100
+        : 0,
+    };
+  });
+
+  const stuckCount = analyticsData?.resumo_parados.total_parados_3d ?? 0;
+
+  function handleDateChange(range: DateRange) {
+    setDateRange(range);
+    fetchData(range, stuckThreshold);
+  }
+
+  function handleThreshold(t: number) {
+    setStuck(t);
+    fetchData(dateRange, t);
+  }
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-gray-50">
+      {/* Sidebar */}
+      <Sidebar
+        active={activePage}
+        onChange={setActivePage}
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebar(v => !v)}
+        stuckCount={stuckCount}
+      />
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Top bar */}
+        <header className="bg-white border-b border-gray-100 px-6 py-3 flex items-center justify-between flex-shrink-0 z-10">
+          <div>
+            <h2 className="text-base font-semibold text-gray-800">{PAGE_TITLES[activePage]}</h2>
+            <p className="text-xs text-gray-400">
+              {format(dateRange.start, "dd/MM/yyyy", { locale: ptBR })} →{" "}
+              {format(dateRange.end, "dd/MM/yyyy", { locale: ptBR })}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {lastUpdated && (
+              <span className="text-xs text-gray-400 hidden sm:block">
+                Atualizado {format(lastUpdated, "HH:mm", { locale: ptBR })}
+              </span>
+            )}
+            <button
+              onClick={() => fetchData(dateRange, stuckThreshold)}
+              disabled={loading}
+              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-blue-600 border border-gray-200 rounded-lg px-3 py-2 hover:bg-blue-50 transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">Atualizar</span>
+            </button>
+            <DateRangePicker value={dateRange} onChange={handleDateChange} />
+          </div>
+        </header>
+
+        {/* Page content — scrollable */}
+        <main className="flex-1 overflow-y-auto p-6">
+          {activePage === "overview" && (
+            <OverviewSection
+              metaData={metaData}
+              crmData={crmData}
+              mergedData={mergedData}
+              loading={loading}
+            />
+          )}
+          {activePage === "meta" && (
+            <MetaAdsSection
+              metaData={metaData}
+              mergedData={mergedData}
+              loading={loading}
+              dateStart={toISODate(dateRange.start)}
+              dateEnd={toISODate(dateRange.end)}
+            />
+          )}
+          {activePage === "crm" && (
+            <CRMSection
+              crmData={crmData}
+              metaData={metaData}
+              loading={loading}
+            />
+          )}
+          {activePage === "analytics" && (
+            <AnalyticsSection
+              data={analyticsData}
+              loading={loading}
+              stuckThreshold={stuckThreshold}
+              onThresholdChange={handleThreshold}
+              totalLeadsCrm={crmData?.total_leads ?? 0}
+            />
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}
