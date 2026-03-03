@@ -222,6 +222,7 @@ export default function CorretoresParadosTable({ data, leads, corretoresTotal, l
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">ID</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Nome</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Empreendimento</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Origem</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Cadastro</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Últ. atualização</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Dias parado</th>
@@ -233,6 +234,7 @@ export default function CorretoresParadosTable({ data, leads, corretoresTotal, l
                       <td className="px-4 py-3 text-xs text-gray-400 font-mono whitespace-nowrap">{l.id}</td>
                       <td className="px-4 py-3 font-medium text-gray-800 max-w-[180px] truncate">{l.nome}</td>
                       <td className="px-4 py-3 text-xs text-gray-600 max-w-[160px] truncate">{l.empreendimento}</td>
+                      <td className="px-4 py-3 text-xs text-gray-500 max-w-[120px] truncate">{l.origem || "—"}</td>
                       <td className="px-4 py-3 text-right text-xs text-gray-500 whitespace-nowrap">{l.data_cadastro ?? "—"}</td>
                       <td className="px-4 py-3 text-right text-xs text-gray-500 whitespace-nowrap">{l.ultima_atualizacao ?? "—"}</td>
                       <td className={cn("px-4 py-3 text-right text-xs whitespace-nowrap", diasColor(l.dias_parado))}>{l.dias_parado}d</td>
@@ -240,7 +242,7 @@ export default function CorretoresParadosTable({ data, leads, corretoresTotal, l
                   ))}
                   {modal.leads.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400">Nenhum lead encontrado</td>
+                      <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">Nenhum lead encontrado</td>
                     </tr>
                   )}
                 </tbody>
