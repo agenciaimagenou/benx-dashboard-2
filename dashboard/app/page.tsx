@@ -14,6 +14,8 @@ import AnalyticsSection from "@/components/sections/AnalyticsSection";
 
 import { DateRange, MetaSummaryByAccount, MergedData } from "@/types";
 import { getDefaultDateRange, toISODate, findBestMatch } from "@/lib/utils";
+import { META_ACCOUNTS } from "@/lib/meta-accounts";
+import MultiSelectDropdown from "@/components/MultiSelectDropdown";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -21,6 +23,7 @@ interface CRMResponse {
   total_leads: number;
   por_situacao: Record<string, number>;
   por_origem: Record<string, number>;
+  por_origem_emp: Record<string, Record<string, number>>;
   por_empreendimento: Array<{
     empreendimento: string;
     total_leads: number;
@@ -92,6 +95,7 @@ export default function Dashboard() {
   const [dateRange, setDateRange]     = useState<DateRange>(getDefaultDateRange());
 
   const [metaData, setMetaData]       = useState<MetaSummaryByAccount[]>([]);
+  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [crmData, setCrmData]         = useState<CRMResponse | null>(null);
   const [analyticsData, setAnalytics] = useState<AnalyticsData | null>(null);
   const [stuckThreshold, setStuck]    = useState(3);
@@ -129,9 +133,16 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Merge Meta + CRM with fuzzy name matching
+  // Filter metaData by selected accounts (empty = all)
+  const filteredMetaData = selectedAccounts.length === 0
+    ? metaData
+    : metaData.filter(m => selectedAccounts.includes(m.ad_account_name));
+
+  const accountOptions = META_ACCOUNTS.map(a => a.name);
+
+  // Merge Meta + CRM with fuzzy name matching (uses filtered accounts)
   const crmEmpNames = crmData?.por_empreendimento.map(c => c.empreendimento) ?? [];
-  const mergedData: MergedData[] = metaData.map(meta => {
+  const mergedData: MergedData[] = filteredMetaData.map(meta => {
     let crm = crmData?.por_empreendimento.find(
       c => c.empreendimento.toLowerCase().trim() === meta.crm_key.toLowerCase().trim()
     );
@@ -163,6 +174,11 @@ export default function Dashboard() {
   });
 
   const stuckCount = analyticsData?.resumo_parados.total_parados_3d ?? 0;
+
+  // Total CRM filtered by selected accounts
+  const filteredCrmLeads = selectedAccounts.length === 0
+    ? (crmData?.total_leads ?? 0)
+    : mergedData.reduce((s, m) => s + m.crm_leads, 0);
 
   function handleDateChange(range: DateRange) {
     setDateRange(range);
@@ -196,12 +212,18 @@ export default function Dashboard() {
               {format(dateRange.end, "dd/MM/yyyy", { locale: ptBR })}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap justify-end">
             {lastUpdated && (
               <span className="text-xs text-gray-400 hidden sm:block">
                 Atualizado {format(lastUpdated, "HH:mm", { locale: ptBR })}
               </span>
             )}
+            <MultiSelectDropdown
+              label="Todas as contas"
+              options={accountOptions}
+              selected={selectedAccounts}
+              onChange={setSelectedAccounts}
+            />
             <button
               onClick={() => fetchData(dateRange, stuckThreshold)}
               disabled={loading}
@@ -218,7 +240,7 @@ export default function Dashboard() {
         <main className="flex-1 overflow-y-auto p-6">
           {activePage === "overview" && (
             <OverviewSection
-              metaData={metaData}
+              metaData={filteredMetaData}
               crmData={crmData}
               mergedData={mergedData}
               loading={loading}
@@ -226,7 +248,7 @@ export default function Dashboard() {
           )}
           {activePage === "meta" && (
             <MetaAdsSection
-              metaData={metaData}
+              metaData={filteredMetaData}
               mergedData={mergedData}
               loading={loading}
               dateStart={toISODate(dateRange.start)}
@@ -236,8 +258,9 @@ export default function Dashboard() {
           {activePage === "crm" && (
             <CRMSection
               crmData={crmData}
-              metaData={metaData}
+              metaData={filteredMetaData}
               loading={loading}
+              accountCrmKeys={selectedAccounts.length > 0 ? filteredMetaData.map(m => m.crm_key) : null}
             />
           )}
           {activePage === "analytics" && (
@@ -246,7 +269,10 @@ export default function Dashboard() {
               loading={loading}
               stuckThreshold={stuckThreshold}
               onThresholdChange={handleThreshold}
-              totalLeadsCrm={crmData?.total_leads ?? 0}
+              totalLeadsCrm={filteredCrmLeads}
+              crmPorOrigem={crmData?.por_origem ?? null}
+              crmPorOrigemEmp={crmData?.por_origem_emp ?? null}
+              accountCrmKeys={selectedAccounts.length > 0 ? filteredMetaData.map(m => m.crm_key) : null}
             />
           )}
         </main>

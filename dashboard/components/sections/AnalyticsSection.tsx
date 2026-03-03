@@ -2,7 +2,16 @@
 
 import { useState, useMemo } from "react";
 import { Filter } from "lucide-react";
-import { formatNumber } from "@/lib/utils";
+import { formatNumber, normalizeStr, findBestMatch } from "@/lib/utils";
+
+function matchesAccount(empName: string, keys: string[]): boolean {
+  const normEmp = normalizeStr(empName);
+  for (const key of keys) {
+    if (normalizeStr(key) === normEmp) return true;
+    if (findBestMatch(key, [empName]).score >= 0.45) return true;
+  }
+  return false;
+}
 import TempoSituacaoTable from "@/components/TempoSituacaoTable";
 import StuckLeadsTable from "@/components/StuckLeadsTable";
 import DiscardReasonsChart from "@/components/DiscardReasonsChart";
@@ -64,6 +73,9 @@ interface Props {
   stuckThreshold: number;
   onThresholdChange: (t: number) => void;
   totalLeadsCrm: number;
+  crmPorOrigem?: Record<string, number> | null;
+  crmPorOrigemEmp?: Record<string, Record<string, number>> | null;
+  accountCrmKeys?: string[] | null;
 }
 
 function computeCorretores(leads: StuckLead[]): CorretorParado[] {
@@ -87,15 +99,8 @@ function computeCorretores(leads: StuckLead[]): CorretorParado[] {
     .slice(0, 25);
 }
 
-export default function AnalyticsSection({ data, loading, stuckThreshold, onThresholdChange, totalLeadsCrm }: Props) {
-  const [filterEmp, setFilterEmp]         = useState("Todos");
+export default function AnalyticsSection({ data, loading, stuckThreshold, onThresholdChange, totalLeadsCrm, crmPorOrigem, crmPorOrigemEmp, accountCrmKeys }: Props) {
   const [filterOrigens, setFilterOrigens] = useState<string[]>([]);
-
-  const empOptions = useMemo(() => {
-    if (!data) return ["Todos"];
-    const emps = Array.from(new Set(data.leads_parados.map(l => l.empreendimento))).sort();
-    return ["Todos", ...emps];
-  }, [data]);
 
   const origemOptions = useMemo(() => {
     if (!data) return [];
@@ -105,20 +110,50 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
   const filteredLeads = useMemo(() => {
     if (!data) return [];
     return data.leads_parados.filter(l => {
-      if (filterEmp !== "Todos" && l.empreendimento !== filterEmp) return false;
+      if (accountCrmKeys && !matchesAccount(l.empreendimento, accountCrmKeys)) return false;
       if (filterOrigens.length > 0 && !filterOrigens.includes(l.origem || "Não definido")) return false;
       return true;
     });
-  }, [data, filterEmp, filterOrigens]);
+  }, [data, accountCrmKeys, filterOrigens]);
 
   const filteredCorretores = useMemo(
     () => computeCorretores(filteredLeads),
     [filteredLeads]
   );
 
+  // Recompute tempo_por_situacao from filteredLeads when any filter is active
+  const filteredTempoPorSituacao = useMemo(() => {
+    const anyFilter = !!accountCrmKeys || filterOrigens.length > 0;
+    if (!anyFilter) return data?.tempo_por_situacao ?? [];
+    const bySit: Record<string, number[]> = {};
+    for (const l of filteredLeads) {
+      const sit = l.situacao || "Não definido";
+      if (!bySit[sit]) bySit[sit] = [];
+      bySit[sit].push(l.dias_parado);
+    }
+    return Object.entries(bySit)
+      .map(([situacao, dias]) => ({
+        situacao,
+        count: dias.length,
+        media_dias: dias.length > 0 ? Math.round(dias.reduce((a, b) => a + b, 0) / dias.length * 10) / 10 : 0,
+        max_dias: dias.length > 0 ? Math.max(...dias) : 0,
+        parados_3dias: dias.filter(d => d >= 3).length,
+        parados_7dias: dias.filter(d => d >= 7).length,
+        parados_15dias: dias.filter(d => d >= 15).length,
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [data, filteredLeads, accountCrmKeys, filterOrigens]);
+
+  // Filter motivos_descarte by accountCrmKeys (origem not available in this dataset)
+  const filteredMotivosDescarte = useMemo(() => {
+    const motivos = data?.motivos_descarte ?? [];
+    if (!accountCrmKeys) return motivos;
+    return motivos.filter(m => matchesAccount(m.empreendimento, accountCrmKeys));
+  }, [data, accountCrmKeys]);
+
   const resumo = useMemo(() => {
     if (!data) return null;
-    const hasFilter = filterEmp !== "Todos" || filterOrigens.length > 0;
+    const hasFilter = !!accountCrmKeys || filterOrigens.length > 0;
     if (!hasFilter) return data.resumo_parados;
     return {
       total_parados_3d:  filteredLeads.filter(l => l.dias_parado >= 3).length,
@@ -128,14 +163,33 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
         ? Math.round(filteredLeads.reduce((s, l) => s + l.dias_sem_contato, 0) / filteredLeads.length * 10) / 10
         : 0,
     };
-  }, [data, filterEmp, filterOrigens, filteredLeads]);
+  }, [data, accountCrmKeys, filterOrigens, filteredLeads]);
 
-  const hasFilter = filterEmp !== "Todos" || filterOrigens.length > 0;
+  const hasFilter = filterOrigens.length > 0;
 
-  function clearFilters() {
-    setFilterEmp("Todos");
-    setFilterOrigens([]);
-  }
+  const displayTotal = useMemo(() => {
+    // No origem filter — totalLeadsCrm already reflects the account filter from parent
+    if (filterOrigens.length === 0) return totalLeadsCrm;
+
+    // Both account + origem filters — use the exact intersection from por_origem_emp
+    if (accountCrmKeys && crmPorOrigemEmp) {
+      let total = 0;
+      for (const origem of filterOrigens) {
+        const empCounts = crmPorOrigemEmp[origem] ?? {};
+        for (const [emp, count] of Object.entries(empCounts)) {
+          if (matchesAccount(emp, accountCrmKeys)) total += count;
+        }
+      }
+      return total;
+    }
+
+    // Origem filter only — sum from por_origem
+    if (crmPorOrigem) {
+      return filterOrigens.reduce((sum, origem) => sum + (crmPorOrigem[origem] ?? 0), 0);
+    }
+
+    return totalLeadsCrm;
+  }, [filterOrigens, accountCrmKeys, crmPorOrigem, crmPorOrigemEmp, totalLeadsCrm]);
 
   return (
     <div className="space-y-6">
@@ -145,17 +199,6 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
           <Filter className="w-3.5 h-3.5" />
           Filtros
         </div>
-
-        {/* Empreendimento — single select (still makes sense) */}
-        <select
-          value={filterEmp}
-          onChange={(e) => setFilterEmp(e.target.value)}
-          className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400 min-w-[180px]"
-        >
-          {empOptions.map(o => (
-            <option key={o} value={o}>{o === "Todos" ? "Todos empreendimentos" : o}</option>
-          ))}
-        </select>
 
         {/* Origem — multi select */}
         <MultiSelectDropdown
@@ -167,7 +210,7 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
 
         {hasFilter && (
           <>
-            <button onClick={clearFilters} className="text-xs text-blue-600 hover:underline">
+            <button onClick={() => setFilterOrigens([])} className="text-xs text-blue-600 hover:underline">
               Limpar filtros
             </button>
             <span className="text-xs text-gray-400 ml-auto">
@@ -181,35 +224,35 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         <div className="bg-white rounded-2xl border border-blue-100 shadow-sm p-4">
           <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-2">Total CRM</p>
-          <p className="text-2xl font-bold text-blue-700">
-            {loading ? "—" : formatNumber(totalLeadsCrm)}
+          <p className="text-lg xl:text-xl 2xl:text-2xl font-bold text-blue-700 break-words">
+            {loading ? "—" : formatNumber(displayTotal)}
           </p>
           <p className="text-xs text-gray-500 mt-1">leads no período</p>
         </div>
         <div className="bg-white rounded-2xl border border-yellow-100 shadow-sm p-4">
           <p className="text-xs font-semibold text-yellow-600 uppercase tracking-wide mb-2">Parados +3 dias</p>
-          <p className="text-2xl font-bold text-yellow-600">
+          <p className="text-lg xl:text-xl 2xl:text-2xl font-bold text-yellow-600 break-words">
             {resumo ? formatNumber(resumo.total_parados_3d) : "—"}
           </p>
           <p className="text-xs text-gray-500 mt-1">leads sem movimento</p>
         </div>
         <div className="bg-white rounded-2xl border border-orange-100 shadow-sm p-4">
           <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-2">Parados +7 dias</p>
-          <p className="text-2xl font-bold text-orange-600">
+          <p className="text-lg xl:text-xl 2xl:text-2xl font-bold text-orange-600 break-words">
             {resumo ? formatNumber(resumo.total_parados_7d) : "—"}
           </p>
           <p className="text-xs text-gray-500 mt-1">atenção necessária</p>
         </div>
         <div className="bg-white rounded-2xl border border-red-100 shadow-sm p-4">
           <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-2">Parados +15 dias</p>
-          <p className="text-2xl font-bold text-red-600">
+          <p className="text-lg xl:text-xl 2xl:text-2xl font-bold text-red-600 break-words">
             {resumo ? formatNumber(resumo.total_parados_15d) : "—"}
           </p>
           <p className="text-xs text-gray-500 mt-1">risco de perda</p>
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Média sem contato</p>
-          <p className="text-2xl font-bold text-gray-700">
+          <p className="text-lg xl:text-xl 2xl:text-2xl font-bold text-gray-700 break-words">
             {resumo ? `${resumo.avg_dias_sem_contato}d` : "—"}
           </p>
           <p className="text-xs text-gray-500 mt-1">por lead ativo</p>
@@ -217,7 +260,7 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
       </div>
 
       {/* Tempo por situação */}
-      <TempoSituacaoTable data={data?.tempo_por_situacao ?? []} loading={loading} />
+      <TempoSituacaoTable data={filteredTempoPorSituacao} loading={loading} />
 
       {/* Corretores com mais leads parados */}
       <CorretoresParadosTable
@@ -228,19 +271,19 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
         threshold={stuckThreshold}
       />
 
-      {/* Stuck leads + discard side by side */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <StuckLeadsTable
-          leads={filteredLeads}
-          loading={loading}
-          threshold={stuckThreshold}
-          onThresholdChange={onThresholdChange}
-        />
-        <DiscardReasonsChart
-          data={data?.motivos_descarte ?? []}
-          loading={loading}
-        />
-      </div>
+      {/* Stuck leads — full width */}
+      <StuckLeadsTable
+        leads={filteredLeads}
+        loading={loading}
+        threshold={stuckThreshold}
+        onThresholdChange={onThresholdChange}
+      />
+
+      {/* Discard reasons — below */}
+      <DiscardReasonsChart
+        data={filteredMotivosDescarte}
+        loading={loading}
+      />
     </div>
   );
 }

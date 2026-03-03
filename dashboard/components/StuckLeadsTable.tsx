@@ -32,7 +32,7 @@ function urgencyBadge(dias: number) {
   return <span className="inline-flex items-center gap-1 text-xs font-semibold text-yellow-700 bg-yellow-50 px-2 py-0.5 rounded-full border border-yellow-200">{label}</span>;
 }
 
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 30;
 
 export default function StuckLeadsTable({ leads, loading, threshold = 3, onThresholdChange }: Props) {
   const [page, setPage] = useState(0);

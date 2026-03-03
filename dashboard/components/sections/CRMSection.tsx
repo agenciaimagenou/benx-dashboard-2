@@ -7,7 +7,7 @@ import FunnelChart from "@/components/FunnelChart";
 import OrigemChart from "@/components/OrigemChart";
 import MultiSelectDropdown from "@/components/MultiSelectDropdown";
 import { MetaSummaryByAccount } from "@/types";
-import { formatCurrency, formatNumber, cn } from "@/lib/utils";
+import { formatCurrency, formatNumber, cn, normalizeStr, findBestMatch } from "@/lib/utils";
 
 interface LeadGanho {
   id: number;
@@ -45,6 +45,7 @@ interface Props {
   crmData: CRMResponse | null;
   metaData: MetaSummaryByAccount[];
   loading: boolean;
+  accountCrmKeys?: string[] | null; // null = all accounts
 }
 
 function isVendaSit(sit: string) {
@@ -52,20 +53,27 @@ function isVendaSit(sit: string) {
   return s.includes("venda") || s.includes("ganho");
 }
 
-export default function CRMSection({ crmData, metaData, loading }: Props) {
-  const [filterEmp, setFilterEmp]         = useState("Todos");
+// Fuzzy match: does empName match any of the accountCrmKeys?
+function matchesAccount(empName: string, keys: string[]): boolean {
+  const normEmp = normalizeStr(empName);
+  for (const key of keys) {
+    if (normalizeStr(key) === normEmp) return true;
+    if (findBestMatch(key, [empName]).score >= 0.45) return true;
+  }
+  return false;
+}
+
+export default function CRMSection({ crmData, metaData, loading, accountCrmKeys }: Props) {
   const [filterOrigens, setFilterOrigens] = useState<string[]>([]);
   const [vendaModal, setVendaModal] = useState<{ empreendimento: string; leads: LeadGanho[] } | null>(null);
 
-  const totalSpend = metaData.reduce((s, m) => s + m.total_spend, 0);
-  const allEmps = crmData?.por_empreendimento ?? [];
-
-  const empOptions    = ["Todos", ...Array.from(new Set(allEmps.map(e => e.empreendimento))).sort()];
+  const totalSpend    = metaData.reduce((s, m) => s + m.total_spend, 0);
+  const allEmps       = crmData?.por_empreendimento ?? [];
   const origemOptions = crmData?.origens_list ?? [];
 
   const empreendimentos = allEmps.filter(e => {
     if (e.empreendimento.includes(",")) return false;
-    if (filterEmp !== "Todos" && e.empreendimento !== filterEmp) return false;
+    if (accountCrmKeys && !matchesAccount(e.empreendimento, accountCrmKeys)) return false;
     if (filterOrigens.length > 0) {
       const hasLead = filterOrigens.some(o => (crmData?.por_origem_emp[o]?.[e.empreendimento] ?? 0) > 0);
       if (!hasLead) return false;
@@ -73,22 +81,50 @@ export default function CRMSection({ crmData, metaData, loading }: Props) {
     return true;
   });
 
-  const hasFilter = filterEmp !== "Todos" || filterOrigens.length > 0;
+  const hasFilter = filterOrigens.length > 0;
 
-  const totalCrmLeads = filterOrigens.length > 0
-    ? filterOrigens.reduce((sum, o) => {
+  // Total CRM: handles all filter combinations using por_origem_emp for accuracy
+  const totalCrmLeads = (() => {
+    if (filterOrigens.length > 0) {
+      return filterOrigens.reduce((sum, o) => {
         const empMap = crmData?.por_origem_emp[o] ?? {};
-        return sum + Object.values(empMap).reduce((a, b) => a + b, 0);
-      }, 0)
-    : hasFilter
-    ? empreendimentos.reduce((s, e) => s + e.total_leads, 0)
-    : (crmData?.total_leads ?? 0);
+        return sum + Object.entries(empMap).reduce((a, [emp, cnt]) => {
+          if (accountCrmKeys && !matchesAccount(emp, accountCrmKeys)) return a;
+          return a + cnt;
+        }, 0);
+      }, 0);
+    }
+    return empreendimentos.reduce((s, e) => s + e.total_leads, 0);
+  })();
+
   const totalGanhos   = empreendimentos.reduce((s, e) => s + e.ganhos, 0);
   const totalReservas = empreendimentos.reduce((s, e) => s + e.reserva, 0);
 
-  const porOrigemFiltrado = filterOrigens.length > 0
-    ? Object.fromEntries(filterOrigens.map(o => [o, crmData?.por_origem[o] ?? 0]))
-    : (crmData?.por_origem ?? {});
+  // Origem chart: filter by account when account filter is active
+  const porOrigemFiltrado = (() => {
+    const origemEmpMap = crmData?.por_origem_emp ?? {};
+    if (filterOrigens.length > 0) {
+      return Object.fromEntries(filterOrigens.map(o => {
+        const empMap = origemEmpMap[o] ?? {};
+        const count = Object.entries(empMap).reduce((a, [emp, cnt]) => {
+          if (accountCrmKeys && !matchesAccount(emp, accountCrmKeys)) return a;
+          return a + cnt;
+        }, 0);
+        return [o, count];
+      }));
+    }
+    if (accountCrmKeys) {
+      const result: Record<string, number> = {};
+      for (const [origem, empMap] of Object.entries(origemEmpMap)) {
+        const count = Object.entries(empMap).reduce((a, [emp, cnt]) => {
+          return matchesAccount(emp, accountCrmKeys) ? a + cnt : a;
+        }, 0);
+        if (count > 0) result[origem] = count;
+      }
+      return result;
+    }
+    return crmData?.por_origem ?? {};
+  })();
 
   function openVendaModal(emp: CRMEmp) {
     setVendaModal({ empreendimento: emp.empreendimento, leads: emp.ganho_leads ?? [] });
@@ -102,15 +138,6 @@ export default function CRMSection({ crmData, metaData, loading }: Props) {
           <Filter className="w-3.5 h-3.5" />
           Filtros
         </div>
-        <select
-          value={filterEmp}
-          onChange={(e) => setFilterEmp(e.target.value)}
-          className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400 min-w-[180px]"
-        >
-          {empOptions.map(o => (
-            <option key={o} value={o}>{o === "Todos" ? "Todos empreendimentos" : o}</option>
-          ))}
-        </select>
         <MultiSelectDropdown
           label="Todas origens"
           options={origemOptions}
@@ -120,16 +147,16 @@ export default function CRMSection({ crmData, metaData, loading }: Props) {
         {hasFilter && (
           <>
             <button
-              onClick={() => { setFilterEmp("Todos"); setFilterOrigens([]); }}
+              onClick={() => setFilterOrigens([])}
               className="text-xs text-blue-600 hover:underline"
             >
               Limpar filtros
             </button>
-            <span className="text-xs text-gray-400 ml-auto">
-              {empreendimentos.length} empreendimento{empreendimentos.length !== 1 ? "s" : ""} exibido{empreendimentos.length !== 1 ? "s" : ""}
-            </span>
           </>
         )}
+        <span className="text-xs text-gray-400 ml-auto">
+          {empreendimentos.length} empreendimento{empreendimentos.length !== 1 ? "s" : ""} exibido{empreendimentos.length !== 1 ? "s" : ""}
+        </span>
       </div>
 
       {/* KPIs */}
@@ -148,7 +175,16 @@ export default function CRMSection({ crmData, metaData, loading }: Props) {
 
       {/* Funnel + Origem */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <FunnelChart porSituacao={crmData?.por_situacao ?? {}} loading={loading} />
+        <FunnelChart porSituacao={(() => {
+          if (!accountCrmKeys && filterOrigens.length === 0) return crmData?.por_situacao ?? {};
+          const merged: Record<string, number> = {};
+          empreendimentos.forEach(emp => {
+            Object.entries(emp.por_situacao ?? {}).forEach(([sit, cnt]) => {
+              merged[sit] = (merged[sit] ?? 0) + cnt;
+            });
+          });
+          return merged;
+        })()} loading={loading} />
         <OrigemChart porOrigem={porOrigemFiltrado} loading={loading} />
       </div>
 
@@ -187,6 +223,9 @@ export default function CRMSection({ crmData, metaData, loading }: Props) {
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap sticky left-0 bg-white z-10 border-r border-gray-100">
                       Empreendimento
                     </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-blue-600 uppercase tracking-wide whitespace-nowrap bg-blue-50 border-r border-gray-100">
+                      Total
+                    </th>
                     {sitCols.map(sit => (
                       <th
                         key={sit}
@@ -200,7 +239,6 @@ export default function CRMSection({ crmData, metaData, loading }: Props) {
                         {sit}
                       </th>
                     ))}
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap bg-gray-50">Total</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap bg-gray-50">Conversão</th>
                   </tr>
                 </thead>
@@ -219,8 +257,12 @@ export default function CRMSection({ crmData, metaData, loading }: Props) {
                       )}>
                         {emp.empreendimento}
                       </td>
+                      <td className="px-4 py-3 text-right font-bold text-blue-700 bg-blue-50/40 border-r border-gray-100 whitespace-nowrap">
+                        {formatNumber(emp.total_leads)}
+                      </td>
                       {sitCols.map(sit => {
                         const cnt = emp.por_situacao?.[sit] ?? 0;
+                        const pct = emp.total_leads > 0 ? ((cnt / emp.total_leads) * 100).toFixed(1) : "0.0";
                         const venda = isVendaSit(sit);
                         return (
                           <td
@@ -232,16 +274,22 @@ export default function CRMSection({ crmData, metaData, loading }: Props) {
                           >
                             {cnt > 0 ? (
                               venda ? (
-                                <button
-                                  onClick={() => openVendaModal(emp)}
-                                  className="inline-flex items-center gap-1 font-bold text-emerald-700 bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-full hover:bg-emerald-200 transition-colors cursor-pointer"
-                                  title={`Ver ${cnt} venda${cnt > 1 ? "s" : ""} de ${emp.empreendimento}`}
-                                >
-                                  <Trophy className="w-3 h-3" />
-                                  {cnt}
-                                </button>
+                                <div className="flex flex-col items-end gap-0.5">
+                                  <button
+                                    onClick={() => openVendaModal(emp)}
+                                    className="inline-flex items-center gap-1 font-bold text-emerald-700 bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-full hover:bg-emerald-200 transition-colors cursor-pointer"
+                                    title={`Ver ${cnt} venda${cnt > 1 ? "s" : ""} de ${emp.empreendimento}`}
+                                  >
+                                    <Trophy className="w-3 h-3" />
+                                    {cnt}
+                                  </button>
+                                  <span className="text-gray-400 text-xs">{pct}%</span>
+                                </div>
                               ) : (
-                                <span className="font-medium text-gray-700">{cnt}</span>
+                                <div className="flex flex-col items-end gap-0.5">
+                                  <span className="font-medium text-gray-700">{cnt}</span>
+                                  <span className="text-gray-400 text-xs">{pct}%</span>
+                                </div>
                               )
                             ) : (
                               <span className="text-gray-200">—</span>
@@ -249,7 +297,6 @@ export default function CRMSection({ crmData, metaData, loading }: Props) {
                           </td>
                         );
                       })}
-                      <td className="px-4 py-3 text-right font-semibold text-gray-800">{formatNumber(emp.total_leads)}</td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <div className="w-12 h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -273,12 +320,21 @@ export default function CRMSection({ crmData, metaData, loading }: Props) {
                 <tfoot>
                   <tr className="border-t-2 border-gray-200 bg-gray-100">
                     <td className="px-4 py-3 text-xs font-bold text-gray-700 uppercase sticky left-0 bg-gray-100 z-10 border-r border-gray-200">Total</td>
-                    {sitCols.map(sit => (
-                      <td key={sit} className={cn("px-3 py-3 text-right text-xs font-bold", isVendaSit(sit) ? "text-emerald-700 bg-emerald-100/60" : "text-gray-700")}>
-                        {formatNumber(sitTotals[sit] ?? 0)}
-                      </td>
-                    ))}
-                    <td className="px-4 py-3 text-right text-xs font-bold text-gray-800">{formatNumber(totalCrmLeads)}</td>
+                    <td className="px-4 py-3 text-right text-xs font-bold text-blue-700 bg-blue-100/60 border-r border-gray-200">
+                      {formatNumber(totalCrmLeads)}
+                    </td>
+                    {sitCols.map(sit => {
+                      const cnt = sitTotals[sit] ?? 0;
+                      const pct = totalCrmLeads > 0 ? ((cnt / totalCrmLeads) * 100).toFixed(1) : "0.0";
+                      return (
+                        <td key={sit} className={cn("px-3 py-3 text-right text-xs font-bold", isVendaSit(sit) ? "text-emerald-700 bg-emerald-100/60" : "text-gray-700")}>
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span>{formatNumber(cnt)}</span>
+                            <span className="text-gray-400 font-normal">{pct}%</span>
+                          </div>
+                        </td>
+                      );
+                    })}
                     <td className="px-4 py-3 text-right text-xs font-bold text-emerald-600">
                       {totalCrmLeads > 0 ? ((totalGanhos / totalCrmLeads) * 100).toFixed(1) : "0.0"}%
                     </td>

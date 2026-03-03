@@ -60,7 +60,7 @@ export default function MetaAdsSection({ metaData, mergedData, loading, dateStar
   return (
     <div className="space-y-6">
       {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
         <KPICard title="Investimento Total" value={formatCurrency(totalSpend)}
           subtitle={`${activeAccounts} contas ativas`}
           icon={DollarSign} color="blue" loading={loading} />
