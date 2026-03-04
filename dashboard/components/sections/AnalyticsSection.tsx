@@ -32,6 +32,7 @@ interface StuckLead {
   situacao: string;
   empreendimento: string;
   corretor: string;
+  imobiliaria: string;
   origem: string;
   data_cadastro: string | null;
   dias_parado: number;
@@ -76,6 +77,7 @@ interface Props {
   crmPorOrigem?: Record<string, number> | null;
   crmPorOrigemEmp?: Record<string, Record<string, number>> | null;
   accountCrmKeys?: string[] | null;
+  filterImobiliaria?: string[] | null;
 }
 
 function computeCorretores(leads: StuckLead[]): CorretorParado[] {
@@ -99,7 +101,7 @@ function computeCorretores(leads: StuckLead[]): CorretorParado[] {
     .slice(0, 25);
 }
 
-export default function AnalyticsSection({ data, loading, stuckThreshold, onThresholdChange, totalLeadsCrm, crmPorOrigem, crmPorOrigemEmp, accountCrmKeys }: Props) {
+export default function AnalyticsSection({ data, loading, stuckThreshold, onThresholdChange, totalLeadsCrm, crmPorOrigem, crmPorOrigemEmp, accountCrmKeys, filterImobiliaria }: Props) {
   const [filterOrigens, setFilterOrigens] = useState<string[]>([]);
 
   const origemOptions = useMemo(() => {
@@ -112,9 +114,10 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
     return data.leads_parados.filter(l => {
       if (accountCrmKeys && !matchesAccount(l.empreendimento, accountCrmKeys)) return false;
       if (filterOrigens.length > 0 && !filterOrigens.includes(l.origem || "Não definido")) return false;
+      if (filterImobiliaria?.length && !filterImobiliaria.includes(l.imobiliaria)) return false;
       return true;
     });
-  }, [data, accountCrmKeys, filterOrigens]);
+  }, [data, accountCrmKeys, filterOrigens, filterImobiliaria]);
 
   const filteredCorretores = useMemo(
     () => computeCorretores(filteredLeads),
@@ -123,7 +126,7 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
 
   // Recompute tempo_por_situacao from filteredLeads when any filter is active
   const filteredTempoPorSituacao = useMemo(() => {
-    const anyFilter = !!accountCrmKeys || filterOrigens.length > 0;
+    const anyFilter = !!accountCrmKeys || filterOrigens.length > 0 || !!filterImobiliaria?.length;
     if (!anyFilter) return data?.tempo_por_situacao ?? [];
     const bySit: Record<string, number[]> = {};
     for (const l of filteredLeads) {
@@ -153,7 +156,7 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
 
   const resumo = useMemo(() => {
     if (!data) return null;
-    const hasFilter = !!accountCrmKeys || filterOrigens.length > 0;
+    const hasFilter = !!accountCrmKeys || filterOrigens.length > 0 || !!filterImobiliaria?.length;
     if (!hasFilter) return data.resumo_parados;
     return {
       total_parados_3d:  filteredLeads.filter(l => l.dias_parado >= 3).length,
@@ -165,7 +168,7 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
     };
   }, [data, accountCrmKeys, filterOrigens, filteredLeads]);
 
-  const hasFilter = filterOrigens.length > 0;
+  const hasFilter = filterOrigens.length > 0 || !!filterImobiliaria?.length;
 
   const displayTotal = useMemo(() => {
     // No origem filter — totalLeadsCrm already reflects the account filter from parent

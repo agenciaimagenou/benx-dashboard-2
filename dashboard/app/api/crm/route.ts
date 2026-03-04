@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
+function extractImobiliaria(corretor: unknown): string {
+  const c = String(corretor || "").trim();
+  const idx = c.indexOf(" - ");
+  if (idx === -1) return "Sem imobiliária";
+  return c.slice(idx + 3).trim() || "Sem imobiliária";
+}
+
 function normalizeOrigem(origem: unknown): string {
   if (!origem) return "Não definido";
   const o = String(origem).trim();
@@ -161,6 +168,7 @@ export async function GET(request: NextRequest) {
     por_situacao: {} as Record<string, number>,
     por_origem: {} as Record<string, number>,
     por_origem_emp: {} as Record<string, Record<string, number>>,
+    por_imobiliaria_emp: {} as Record<string, Record<string, number>>,
     por_empreendimento: result,
     origens_list: [] as string[],
   };
@@ -176,6 +184,10 @@ export async function GET(request: NextRequest) {
     const empTotal = (lead["Primeiro Empreendimento"] || lead["Empreendimento"] || "Não Identificado") as string;
     if (!totals.por_origem_emp[origem]) totals.por_origem_emp[origem] = {};
     totals.por_origem_emp[origem][empTotal] = (totals.por_origem_emp[origem][empTotal] || 0) + 1;
+
+    const imob = extractImobiliaria(lead["Corretor"]);
+    if (!totals.por_imobiliaria_emp[imob]) totals.por_imobiliaria_emp[imob] = {};
+    totals.por_imobiliaria_emp[imob][empTotal] = (totals.por_imobiliaria_emp[imob][empTotal] || 0) + 1;
   }
 
   totals.origens_list = Object.keys(totals.por_origem).sort();

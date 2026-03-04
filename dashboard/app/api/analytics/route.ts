@@ -53,6 +53,13 @@ function daysBetween(from: Date, to: Date): number {
   return Math.floor((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
 }
 
+function extractImobiliaria(corretor: unknown): string {
+  const c = String(corretor || "").trim();
+  const idx = c.indexOf(" - ");
+  if (idx === -1) return "Sem imobiliária";
+  return c.slice(idx + 3).trim() || "Sem imobiliária";
+}
+
 function normalizeOrigem(origem: unknown): string {
   if (!origem) return "Não definido";
   const o = String(origem).trim();
@@ -77,6 +84,7 @@ export interface StuckLeadEntry {
   situacao: string;
   empreendimento: string;
   corretor: string;
+  imobiliaria: string;
   origem: string;
   data_cadastro: string | null;
   dias_parado: number;
@@ -116,6 +124,7 @@ export interface AnalyticsResponse {
   motivos_descarte: MotivoDescarte[];
   corretores_parados: CorretorParado[];
   corretores_total: Record<string, number>;
+  imobiliarias_list: string[];
   resumo_parados: {
     total_parados_3d: number;
     total_parados_7d: number;
@@ -233,6 +242,7 @@ export async function GET(request: NextRequest) {
         situacao: sit,
         empreendimento: (lead["Primeiro Empreendimento"] || lead["Empreendimento"] || "—") as string,
         corretor: lead["Corretor"] || "—",
+        imobiliaria: extractImobiliaria(lead["Corretor"]),
         origem: normalizeOrigem(lead["Primeira Origem"]),
         data_cadastro: lead["Data Primeiro Cadastro"] || null,
         dias_parado: diasParado,
@@ -390,9 +400,11 @@ export async function GET(request: NextRequest) {
 
   // Total de leads por corretor (todos no período, não apenas parados)
   const corretoresTotal: Record<string, number> = {};
+  const imobiliariasSet = new Set<string>();
   for (const lead of filtered) {
     const c = String(lead["Corretor"] || "").split(" - ")[0].trim() || "Não atribuído";
     corretoresTotal[c] = (corretoresTotal[c] || 0) + 1;
+    imobiliariasSet.add(extractImobiliaria(lead["Corretor"]));
   }
 
   const response: AnalyticsResponse = {
@@ -401,6 +413,7 @@ export async function GET(request: NextRequest) {
     motivos_descarte: motivosDescarte,
     corretores_parados: corretoresParados,
     corretores_total: corretoresTotal,
+    imobiliarias_list: Array.from(imobiliariasSet).sort(),
     resumo_parados: {
       total_parados_3d: totalParados3d,
       total_parados_7d: totalParados7d,

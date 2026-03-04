@@ -24,6 +24,7 @@ interface CRMResponse {
   por_situacao: Record<string, number>;
   por_origem: Record<string, number>;
   por_origem_emp: Record<string, Record<string, number>>;
+  por_imobiliaria_emp: Record<string, Record<string, number>>;
   por_empreendimento: Array<{
     empreendimento: string;
     total_leads: number;
@@ -52,12 +53,14 @@ interface AnalyticsData {
     situacao: string;
     empreendimento: string;
     corretor: string;
+    imobiliaria: string;
     origem: string;
     data_cadastro: string | null;
     dias_parado: number;
     ultima_atualizacao: string | null;
     dias_sem_contato: number;
   }>;
+  imobiliarias_list: string[];
   motivos_descarte: Array<{
     motivo: string;
     descricao: string;
@@ -96,6 +99,7 @@ export default function Dashboard() {
 
   const [metaData, setMetaData]       = useState<MetaSummaryByAccount[]>([]);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
+  const [selectedImobiliaria, setSelectedImobiliaria] = useState<string[]>([]);
   const [crmData, setCrmData]         = useState<CRMResponse | null>(null);
   const [analyticsData, setAnalytics] = useState<AnalyticsData | null>(null);
   const [stuckThreshold, setStuck]    = useState(3);
@@ -139,6 +143,7 @@ export default function Dashboard() {
     : metaData.filter(m => selectedAccounts.includes(m.ad_account_name));
 
   const accountOptions = META_ACCOUNTS.map(a => a.name);
+  const imobiliariasOptions = analyticsData?.imobiliarias_list ?? [];
 
   // Merge Meta + CRM with fuzzy name matching (uses filtered accounts)
   const crmEmpNames = crmData?.por_empreendimento.map(c => c.empreendimento) ?? [];
@@ -224,6 +229,12 @@ export default function Dashboard() {
               selected={selectedAccounts}
               onChange={setSelectedAccounts}
             />
+            <MultiSelectDropdown
+              label="Todas as imobiliárias"
+              options={imobiliariasOptions}
+              selected={selectedImobiliaria}
+              onChange={setSelectedImobiliaria}
+            />
             <button
               onClick={() => fetchData(dateRange, stuckThreshold)}
               disabled={loading}
@@ -261,6 +272,7 @@ export default function Dashboard() {
               metaData={filteredMetaData}
               loading={loading}
               accountCrmKeys={selectedAccounts.length > 0 ? filteredMetaData.map(m => m.crm_key) : null}
+              filterImobiliaria={selectedImobiliaria.length > 0 ? selectedImobiliaria : null}
             />
           )}
           {activePage === "analytics" && (
@@ -273,6 +285,7 @@ export default function Dashboard() {
               crmPorOrigem={crmData?.por_origem ?? null}
               crmPorOrigemEmp={crmData?.por_origem_emp ?? null}
               accountCrmKeys={selectedAccounts.length > 0 ? filteredMetaData.map(m => m.crm_key) : null}
+              filterImobiliaria={selectedImobiliaria.length > 0 ? selectedImobiliaria : null}
             />
           )}
         </main>

@@ -37,6 +37,7 @@ interface CRMResponse {
   por_situacao: Record<string, number>;
   por_origem: Record<string, number>;
   por_origem_emp: Record<string, Record<string, number>>;
+  por_imobiliaria_emp: Record<string, Record<string, number>>;
   por_empreendimento: CRMEmp[];
   origens_list: string[];
 }
@@ -46,6 +47,7 @@ interface Props {
   metaData: MetaSummaryByAccount[];
   loading: boolean;
   accountCrmKeys?: string[] | null; // null = all accounts
+  filterImobiliaria?: string[] | null;
 }
 
 function isVendaSit(sit: string) {
@@ -63,7 +65,7 @@ function matchesAccount(empName: string, keys: string[]): boolean {
   return false;
 }
 
-export default function CRMSection({ crmData, metaData, loading, accountCrmKeys }: Props) {
+export default function CRMSection({ crmData, metaData, loading, accountCrmKeys, filterImobiliaria }: Props) {
   const [filterOrigens, setFilterOrigens] = useState<string[]>([]);
   const [vendaModal, setVendaModal] = useState<{ empreendimento: string; leads: LeadGanho[] } | null>(null);
 
@@ -78,18 +80,23 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
       const hasLead = filterOrigens.some(o => (crmData?.por_origem_emp[o]?.[e.empreendimento] ?? 0) > 0);
       if (!hasLead) return false;
     }
+    if (filterImobiliaria?.length) {
+      const hasLead = filterImobiliaria.some(imob => (crmData?.por_imobiliaria_emp[imob]?.[e.empreendimento] ?? 0) > 0);
+      if (!hasLead) return false;
+    }
     return true;
   });
 
-  const hasFilter = filterOrigens.length > 0;
+  const hasFilter = filterOrigens.length > 0 || !!filterImobiliaria?.length;
 
-  // Total CRM: handles all filter combinations using por_origem_emp for accuracy
+  // Total CRM: handles all filter combinations
   const totalCrmLeads = (() => {
     if (filterOrigens.length > 0) {
       return filterOrigens.reduce((sum, o) => {
         const empMap = crmData?.por_origem_emp[o] ?? {};
         return sum + Object.entries(empMap).reduce((a, [emp, cnt]) => {
           if (accountCrmKeys && !matchesAccount(emp, accountCrmKeys)) return a;
+          if (filterImobiliaria?.length && !(filterImobiliaria.some(imob => (crmData?.por_imobiliaria_emp[imob]?.[emp] ?? 0) > 0))) return a;
           return a + cnt;
         }, 0);
       }, 0);
