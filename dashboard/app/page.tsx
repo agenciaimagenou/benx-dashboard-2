@@ -181,10 +181,17 @@ export default function Dashboard() {
 
   const stuckCount = analyticsData?.resumo_parados.total_parados_3d ?? 0;
 
-  // Total CRM filtered by selected accounts
-  const filteredCrmLeads = selectedAccounts.length === 0
-    ? (crmData?.total_leads ?? 0)
-    : mergedData.reduce((s, m) => s + m.crm_leads, 0);
+  // Total CRM filtered by selected accounts and/or imobiliária
+  const filteredCrmLeads = (() => {
+    if (selectedImobiliaria.length > 0) {
+      return selectedImobiliaria.reduce((sum, imob) => {
+        const empMap = crmData?.por_imobiliaria_emp?.[imob] ?? {};
+        return sum + Object.values(empMap).reduce((a, cnt) => a + cnt, 0);
+      }, 0);
+    }
+    if (selectedAccounts.length === 0) return crmData?.total_leads ?? 0;
+    return mergedData.reduce((s, m) => s + m.crm_leads, 0);
+  })();
 
   function handleDateChange(range: DateRange) {
     setDateRange(range);
