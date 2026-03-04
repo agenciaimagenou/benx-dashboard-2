@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { UserX, X } from "lucide-react";
+import { UserX, X, ChevronUp, ChevronDown } from "lucide-react";
 import { cn, formatNumber } from "@/lib/utils";
 
 interface CorretorParado {
@@ -78,8 +78,24 @@ interface ModalState {
   leads: StuckLead[];
 }
 
+type SortKey = "corretor" | "total_parados" | "avg_dias" | "max_dias" | "totalLeads";
+
 export default function CorretoresParadosTable({ data, leads, corretoresTotal, loading, threshold = 3 }: Props) {
   const [modal, setModal] = useState<ModalState | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>("total_parados");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("desc"); }
+  }
+
+  function SortIcon({ col }: { col: SortKey }) {
+    if (sortKey !== col) return <ChevronUp className="w-3 h-3 opacity-20 flex-shrink-0" />;
+    return sortDir === "asc"
+      ? <ChevronUp className="w-3 h-3 text-blue-500 flex-shrink-0" />
+      : <ChevronDown className="w-3 h-3 text-blue-500 flex-shrink-0" />;
+  }
 
   function openModal(corretor: string, situacao: string) {
     const corretorLeads = leads.filter(
@@ -111,7 +127,23 @@ export default function CorretoresParadosTable({ data, leads, corretoresTotal, l
     );
   }
 
+  const sorted = [...data].sort((a, b) => {
+    let av: string | number, bv: string | number;
+    if (sortKey === "totalLeads") {
+      av = corretoresTotal[a.corretor] ?? a.total_parados;
+      bv = corretoresTotal[b.corretor] ?? b.total_parados;
+    } else if (sortKey === "corretor") {
+      av = a.corretor; bv = b.corretor;
+    } else {
+      av = a[sortKey]; bv = b[sortKey];
+    }
+    if (typeof av === "string" && typeof bv === "string")
+      return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+    return sortDir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
+  });
+
   const maxTotal = Math.max(...data.map(d => d.total_parados));
+  const thClass = "px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide cursor-pointer select-none hover:bg-gray-100 transition-colors";
 
   return (
     <>
@@ -131,17 +163,27 @@ export default function CorretoresParadosTable({ data, leads, corretoresTotal, l
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide w-6">#</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Corretor</th>
+                <th onClick={() => toggleSort("corretor")} className={cn(thClass, "text-left")}>
+                  <div className="flex items-center gap-1">Corretor <SortIcon col="corretor" /></div>
+                </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Por Situação</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Total</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Parados</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Média dias</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Máx dias</th>
+                <th onClick={() => toggleSort("totalLeads")} className={cn(thClass, "text-right")}>
+                  <div className="flex items-center justify-end gap-1">Total <SortIcon col="totalLeads" /></div>
+                </th>
+                <th onClick={() => toggleSort("total_parados")} className={cn(thClass, "text-right")}>
+                  <div className="flex items-center justify-end gap-1">Parados <SortIcon col="total_parados" /></div>
+                </th>
+                <th onClick={() => toggleSort("avg_dias")} className={cn(thClass, "text-right")}>
+                  <div className="flex items-center justify-end gap-1">Média dias <SortIcon col="avg_dias" /></div>
+                </th>
+                <th onClick={() => toggleSort("max_dias")} className={cn(thClass, "text-right")}>
+                  <div className="flex items-center justify-end gap-1">Máx dias <SortIcon col="max_dias" /></div>
+                </th>
                 <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-28">Volume</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {data.map((row, i) => {
+              {sorted.map((row, i) => {
                 const situations = Object.entries(row.por_situacao).sort((a, b) => b[1] - a[1]);
                 const totalLeads = corretoresTotal[row.corretor] ?? row.total_parados;
                 return (

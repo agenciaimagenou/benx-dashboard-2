@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Users, Award, TrendingUp, Target, CheckCircle2, Filter, X, Trophy } from "lucide-react";
+import { Users, Award, TrendingUp, Target, CheckCircle2, Filter, X, Trophy, ChevronUp, ChevronDown } from "lucide-react";
 import KPICard from "@/components/KPICard";
 import FunnelChart from "@/components/FunnelChart";
 import OrigemChart from "@/components/OrigemChart";
@@ -65,9 +65,25 @@ function matchesAccount(empName: string, keys: string[]): boolean {
   return false;
 }
 
+type FunnelSortKey = "empreendimento" | "total" | "conversao";
+
 export default function CRMSection({ crmData, metaData, loading, accountCrmKeys }: Props) {
   const [filterOrigens, setFilterOrigens] = useState<string[]>([]);
   const [filterImobiliaria, setFilterImobiliaria] = useState<string[]>([]);
+  const [funnelSort, setFunnelSort] = useState<FunnelSortKey>("total");
+  const [funnelDir, setFunnelDir] = useState<"asc" | "desc">("desc");
+
+  function toggleFunnelSort(key: FunnelSortKey) {
+    if (funnelSort === key) setFunnelDir(d => d === "asc" ? "desc" : "asc");
+    else { setFunnelSort(key); setFunnelDir("desc"); }
+  }
+
+  function FunnelSortIcon({ col }: { col: FunnelSortKey }) {
+    if (funnelSort !== col) return <ChevronUp className="w-3 h-3 opacity-20 flex-shrink-0" />;
+    return funnelDir === "asc"
+      ? <ChevronUp className="w-3 h-3 text-blue-500 flex-shrink-0" />
+      : <ChevronDown className="w-3 h-3 text-blue-500 flex-shrink-0" />;
+  }
   const imobiliariasOptions = Object.keys(crmData?.por_imobiliaria_emp ?? {}).sort();
   const [vendaModal, setVendaModal] = useState<{ empreendimento: string; leads: LeadGanho[] } | null>(null);
 
@@ -268,9 +284,21 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
           });
           const sitCols = Object.entries(sitTotals).sort((a, b) => b[1] - a[1]).map(([sit]) => sit);
           const sortedEmps = [...empreendimentos].sort((a, b) => {
-            const aTotal = filterImobiliaria.length ? empImobTotal(a.empreendimento) : a.total_leads;
-            const bTotal = filterImobiliaria.length ? empImobTotal(b.empreendimento) : b.total_leads;
-            return bTotal - aTotal;
+            const getVal = (e: typeof a) => {
+              if (funnelSort === "empreendimento") return e.empreendimento;
+              if (funnelSort === "conversao") {
+                const t = filterImobiliaria.length ? empImobTotal(e.empreendimento) : e.total_leads;
+                const g = filterImobiliaria.length
+                  ? Object.entries(empImobSit(e.empreendimento)).filter(([k]) => isVendaSit(k)).reduce((acc, [, v]) => acc + v, 0)
+                  : e.ganhos;
+                return t > 0 ? g / t : 0;
+              }
+              return filterImobiliaria.length ? empImobTotal(e.empreendimento) : e.total_leads;
+            };
+            const av = getVal(a), bv = getVal(b);
+            if (typeof av === "string" && typeof bv === "string")
+              return funnelDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+            return funnelDir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
           });
 
           return (
@@ -278,11 +306,17 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b-2 border-gray-200">
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap sticky left-0 bg-white z-10 border-r border-gray-100">
-                      Empreendimento
+                    <th
+                      onClick={() => toggleFunnelSort("empreendimento")}
+                      className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap sticky left-0 bg-white z-10 border-r border-gray-100 cursor-pointer select-none hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-1">Empreendimento <FunnelSortIcon col="empreendimento" /></div>
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-blue-600 uppercase tracking-wide whitespace-nowrap bg-blue-50 border-r border-gray-100">
-                      Total
+                    <th
+                      onClick={() => toggleFunnelSort("total")}
+                      className="px-4 py-3 text-right text-xs font-semibold text-blue-600 uppercase tracking-wide whitespace-nowrap bg-blue-50 border-r border-gray-100 cursor-pointer select-none hover:bg-blue-100 transition-colors"
+                    >
+                      <div className="flex items-center justify-end gap-1">Total <FunnelSortIcon col="total" /></div>
                     </th>
                     {sitCols.map(sit => (
                       <th
@@ -297,7 +331,12 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
                         {sit}
                       </th>
                     ))}
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap bg-gray-50">Conversão</th>
+                    <th
+                      onClick={() => toggleFunnelSort("conversao")}
+                      className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap bg-gray-50 cursor-pointer select-none hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-center justify-end gap-1">Conversão <FunnelSortIcon col="conversao" /></div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>

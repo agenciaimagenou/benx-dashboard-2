@@ -1,6 +1,7 @@
 "use client";
 
-import { Clock, AlertTriangle, AlertCircle } from "lucide-react";
+import { useState } from "react";
+import { Clock, AlertTriangle, AlertCircle, ChevronUp, ChevronDown } from "lucide-react";
 import { cn, formatNumber } from "@/lib/utils";
 
 interface TempoSituacao {
@@ -32,7 +33,33 @@ function urgencyBg(mediaDias: number) {
   return "";
 }
 
+type SortKey = "situacao" | "count" | "media_dias" | "max_dias" | "parados_3dias" | "parados_7dias" | "parados_15dias";
+
 export default function TempoSituacaoTable({ data, loading }: Props) {
+  const [sortKey, setSortKey] = useState<SortKey>("count");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("desc"); }
+  }
+
+  function SortIcon({ col }: { col: SortKey }) {
+    if (sortKey !== col) return <ChevronUp className="w-3 h-3 opacity-20 flex-shrink-0" />;
+    return sortDir === "asc"
+      ? <ChevronUp className="w-3 h-3 text-blue-500 flex-shrink-0" />
+      : <ChevronDown className="w-3 h-3 text-blue-500 flex-shrink-0" />;
+  }
+
+  const sorted = [...data].sort((a, b) => {
+    const av = a[sortKey], bv = b[sortKey];
+    if (typeof av === "string" && typeof bv === "string")
+      return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+    return sortDir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
+  });
+
+  const thClass = "px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide cursor-pointer select-none hover:bg-gray-100 transition-colors";
+
   if (loading) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 animate-pulse">
@@ -59,35 +86,44 @@ export default function TempoSituacaoTable({ data, loading }: Props) {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Situação</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Total leads</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Média dias</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Máx. dias</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
-                <span className="inline-flex items-center gap-1 text-yellow-600">
-                  <AlertTriangle className="w-3 h-3" /> +3d
-                </span>
+              <th onClick={() => toggleSort("situacao")} className={cn(thClass, "text-left")}>
+                <div className="flex items-center gap-1">Situação <SortIcon col="situacao" /></div>
               </th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
-                <span className="inline-flex items-center gap-1 text-orange-500">
-                  <AlertTriangle className="w-3 h-3" /> +7d
-                </span>
+              <th onClick={() => toggleSort("count")} className={cn(thClass, "text-right")}>
+                <div className="flex items-center justify-end gap-1">Total leads <SortIcon col="count" /></div>
               </th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
-                <span className="inline-flex items-center gap-1 text-red-500">
-                  <AlertCircle className="w-3 h-3" /> +15d
-                </span>
+              <th onClick={() => toggleSort("media_dias")} className={cn(thClass, "text-right")}>
+                <div className="flex items-center justify-end gap-1">Média dias <SortIcon col="media_dias" /></div>
+              </th>
+              <th onClick={() => toggleSort("max_dias")} className={cn(thClass, "text-right")}>
+                <div className="flex items-center justify-end gap-1">Máx. dias <SortIcon col="max_dias" /></div>
+              </th>
+              <th onClick={() => toggleSort("parados_3dias")} className={cn(thClass, "text-right whitespace-nowrap")}>
+                <div className="flex items-center justify-end gap-1">
+                  <span className="inline-flex items-center gap-1 text-yellow-600"><AlertTriangle className="w-3 h-3" /> +3d</span>
+                  <SortIcon col="parados_3dias" />
+                </div>
+              </th>
+              <th onClick={() => toggleSort("parados_7dias")} className={cn(thClass, "text-right whitespace-nowrap")}>
+                <div className="flex items-center justify-end gap-1">
+                  <span className="inline-flex items-center gap-1 text-orange-500"><AlertTriangle className="w-3 h-3" /> +7d</span>
+                  <SortIcon col="parados_7dias" />
+                </div>
+              </th>
+              <th onClick={() => toggleSort("parados_15dias")} className={cn(thClass, "text-right whitespace-nowrap")}>
+                <div className="flex items-center justify-end gap-1">
+                  <span className="inline-flex items-center gap-1 text-red-500"><AlertCircle className="w-3 h-3" /> +15d</span>
+                  <SortIcon col="parados_15dias" />
+                </div>
               </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {data.map((row) => (
+            {sorted.map((row) => (
               <tr key={row.situacao} className={cn("hover:bg-gray-50/50 transition-colors", urgencyBg(row.media_dias))}>
                 <td className="px-4 py-3 font-medium text-gray-800 whitespace-nowrap">{row.situacao}</td>
                 <td className="px-4 py-3 text-right text-gray-600">{formatNumber(row.count)}</td>
-                <td className={cn("px-4 py-3 text-right", urgencyColor(row.media_dias))}>
-                  {row.media_dias}d
-                </td>
+                <td className={cn("px-4 py-3 text-right", urgencyColor(row.media_dias))}>{row.media_dias}d</td>
                 <td className="px-4 py-3 text-right text-gray-500">{row.max_dias}d</td>
                 <td className="px-4 py-3 text-right">
                   <span className={cn("font-medium", row.parados_3dias > 0 ? "text-yellow-600" : "text-gray-300")}>

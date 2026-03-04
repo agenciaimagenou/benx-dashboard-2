@@ -34,22 +34,62 @@ function urgencyBadge(dias: number) {
 
 const PAGE_SIZE = 30;
 
+type SortKey = "id" | "nome" | "empreendimento" | "situacao" | "corretor" | "data_cadastro" | "ultima_atualizacao" | "dias_sem_contato";
+
+function parseBrDate(s: string | null): number {
+  if (!s) return 0;
+  const p = s.split("/");
+  if (p.length !== 3) return 0;
+  return new Date(`${p[2]}-${p[1]}-${p[0]}`).getTime();
+}
+
 export default function StuckLeadsTable({ leads, loading, threshold = 3, onThresholdChange }: Props) {
   const [page, setPage] = useState(0);
   const [filterSit, setFilterSit] = useState("Todos");
   const [filterEmp, setFilterEmp] = useState("Todos");
+  const [sortKey, setSortKey] = useState<SortKey>("dias_sem_contato");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("desc"); }
+    setPage(0);
+  }
+
+  function SortIcon({ col }: { col: SortKey }) {
+    if (sortKey !== col) return <ChevronUp className="w-3 h-3 opacity-20 flex-shrink-0" />;
+    return sortDir === "asc"
+      ? <ChevronUp className="w-3 h-3 text-blue-500 flex-shrink-0" />
+      : <ChevronDown className="w-3 h-3 text-blue-500 flex-shrink-0" />;
+  }
 
   const situations = ["Todos", ...Array.from(new Set(leads.map((l) => l.situacao))).sort()];
   const empreendimentos = ["Todos", ...Array.from(new Set(leads.map((l) => l.empreendimento))).sort()];
 
-  const filtered = leads.filter((l) => {
-    if (filterSit !== "Todos" && l.situacao !== filterSit) return false;
-    if (filterEmp !== "Todos" && l.empreendimento !== filterEmp) return false;
-    return true;
-  });
+  const filtered = leads
+    .filter((l) => {
+      if (filterSit !== "Todos" && l.situacao !== filterSit) return false;
+      if (filterEmp !== "Todos" && l.empreendimento !== filterEmp) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      let av: string | number, bv: string | number;
+      if (sortKey === "data_cadastro") {
+        av = parseBrDate(a.data_cadastro); bv = parseBrDate(b.data_cadastro);
+      } else if (sortKey === "ultima_atualizacao") {
+        av = parseBrDate(a.ultima_atualizacao); bv = parseBrDate(b.ultima_atualizacao);
+      } else {
+        av = a[sortKey] ?? ""; bv = b[sortKey] ?? "";
+      }
+      if (typeof av === "string" && typeof bv === "string")
+        return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+      return sortDir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
+    });
 
   const pages = Math.ceil(filtered.length / PAGE_SIZE);
   const current = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  const thClass = "px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide cursor-pointer select-none hover:bg-gray-100 transition-colors";
 
   if (loading) {
     return (
@@ -125,14 +165,30 @@ export default function StuckLeadsTable({ leads, loading, threshold = 3, onThres
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">ID</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Nome</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Empreendimento</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Situação</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Corretor</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Data Cadastro</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Última atualização</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Sem contato</th>
+                  <th onClick={() => toggleSort("id")} className={cn(thClass, "text-right")}>
+                    <div className="flex items-center justify-end gap-1">ID <SortIcon col="id" /></div>
+                  </th>
+                  <th onClick={() => toggleSort("nome")} className={cn(thClass, "text-left")}>
+                    <div className="flex items-center gap-1">Nome <SortIcon col="nome" /></div>
+                  </th>
+                  <th onClick={() => toggleSort("empreendimento")} className={cn(thClass, "text-left")}>
+                    <div className="flex items-center gap-1">Empreendimento <SortIcon col="empreendimento" /></div>
+                  </th>
+                  <th onClick={() => toggleSort("situacao")} className={cn(thClass, "text-left")}>
+                    <div className="flex items-center gap-1">Situação <SortIcon col="situacao" /></div>
+                  </th>
+                  <th onClick={() => toggleSort("corretor")} className={cn(thClass, "text-left")}>
+                    <div className="flex items-center gap-1">Corretor <SortIcon col="corretor" /></div>
+                  </th>
+                  <th onClick={() => toggleSort("data_cadastro")} className={cn(thClass, "text-right whitespace-nowrap")}>
+                    <div className="flex items-center justify-end gap-1">Data Cadastro <SortIcon col="data_cadastro" /></div>
+                  </th>
+                  <th onClick={() => toggleSort("ultima_atualizacao")} className={cn(thClass, "text-right")}>
+                    <div className="flex items-center justify-end gap-1">Última atualização <SortIcon col="ultima_atualizacao" /></div>
+                  </th>
+                  <th onClick={() => toggleSort("dias_sem_contato")} className={cn(thClass, "text-right whitespace-nowrap")}>
+                    <div className="flex items-center justify-end gap-1">Sem contato <SortIcon col="dias_sem_contato" /></div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
