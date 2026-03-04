@@ -325,7 +325,19 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
               sitTotals[sit] = (sitTotals[sit] || 0) + cnt;
             });
           });
-          const sitCols = Object.entries(sitTotals).sort((a, b) => b[1] - a[1]).map(([sit]) => sit);
+          const SIT_ORDER = [
+            "Lead Recebido",
+            "Tentativa de Contato",
+            "Em Atendimento",
+            "Visita Agendada",
+            "Visita Realizada",
+            "Proposta",
+            "Com Reserva",
+          ];
+          const sitCols = [
+            ...SIT_ORDER.filter(s => s in sitTotals),
+            ...Object.keys(sitTotals).filter(s => !SIT_ORDER.includes(s)).sort((a, b) => (sitTotals[b] ?? 0) - (sitTotals[a] ?? 0)),
+          ];
           const sortedEmps = [...empreendimentos].sort((a, b) => {
             const getVal = (e: typeof a) => {
               if (funnelSort === "empreendimento") return e.empreendimento;

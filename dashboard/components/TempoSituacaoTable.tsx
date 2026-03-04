@@ -51,7 +51,30 @@ export default function TempoSituacaoTable({ data, loading }: Props) {
       : <ChevronDown className="w-3 h-3 text-blue-500 flex-shrink-0" />;
   }
 
-  const sorted = [...data].sort((a, b) => {
+  const SIT_ORDER = [
+    "Lead Recebido",
+    "Tentativa de Contato",
+    "Em Atendimento",
+    "Visita Agendada",
+    "Visita Realizada",
+    "Proposta",
+    "Com Reserva",
+  ];
+
+  const filtered = data.filter(row => {
+    const s = row.situacao.toLowerCase();
+    return !s.includes("descart") && !s.includes("venda") && !s.includes("ganho");
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortKey === "situacao") {
+      const ai = SIT_ORDER.indexOf(a.situacao);
+      const bi = SIT_ORDER.indexOf(b.situacao);
+      const aIdx = ai === -1 ? SIT_ORDER.length : ai;
+      const bIdx = bi === -1 ? SIT_ORDER.length : bi;
+      if (aIdx !== bIdx) return sortDir === "asc" ? aIdx - bIdx : bIdx - aIdx;
+      return a.situacao.localeCompare(b.situacao);
+    }
     const av = a[sortKey], bv = b[sortKey];
     if (typeof av === "string" && typeof bv === "string")
       return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);

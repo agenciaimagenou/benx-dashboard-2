@@ -148,6 +148,10 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
       bySit[sit].push(l.dias_parado);
     }
     return Object.entries(bySit)
+      .filter(([situacao]) => {
+        const s = situacao.toLowerCase();
+        return !s.includes("descart") && !s.includes("venda") && !s.includes("ganho");
+      })
       .map(([situacao, dias]) => ({
         situacao,
         count: dias.length,
