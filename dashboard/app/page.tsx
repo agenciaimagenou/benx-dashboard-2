@@ -24,7 +24,9 @@ interface CRMResponse {
   por_situacao: Record<string, number>;
   por_origem: Record<string, number>;
   por_origem_emp: Record<string, Record<string, number>>;
+  por_origem_imobiliaria: Record<string, Record<string, number>>;
   por_ultima_origem_emp: Record<string, Record<string, number>>;
+  por_ultima_origem_imobiliaria: Record<string, Record<string, number>>;
   por_imobiliaria_emp: Record<string, Record<string, number>>;
   por_imobiliaria_emp_sit: Record<string, Record<string, Record<string, number>>>;
   ultimas_origens_list: string[];
@@ -282,6 +284,8 @@ export default function Dashboard() {
               crmPorOrigemEmp={crmData?.por_origem_emp ?? null}
               crmPorImobiliariaEmp={crmData?.por_imobiliaria_emp ?? null}
               crmPorUltimaOrigemEmp={crmData?.por_ultima_origem_emp ?? null}
+              crmPorOrigemImobiliaria={crmData?.por_origem_imobiliaria ?? null}
+              crmPorUltimaOrigemImobiliaria={crmData?.por_ultima_origem_imobiliaria ?? null}
               accountCrmKeys={selectedAccounts.length > 0 ? filteredMetaData.map(m => m.crm_key) : null}
             />
           )}

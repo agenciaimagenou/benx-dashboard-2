@@ -37,7 +37,9 @@ interface CRMResponse {
   por_situacao: Record<string, number>;
   por_origem: Record<string, number>;
   por_origem_emp: Record<string, Record<string, number>>;
+  por_origem_imobiliaria: Record<string, Record<string, number>>;
   por_ultima_origem_emp: Record<string, Record<string, number>>;
+  por_ultima_origem_imobiliaria: Record<string, Record<string, number>>;
   por_imobiliaria_emp: Record<string, Record<string, number>>;
   por_imobiliaria_emp_sit: Record<string, Record<string, Record<string, number>>>;
   por_empreendimento: CRMEmp[];
@@ -132,12 +134,26 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
     return merged;
   }
 
-  // Total CRM: handles all filter combinations
-  // When imobiliária is active, use it as base and restrict to empreendimentos
-  // that also pass all other active filters (avoids overcounting in intersections).
+  // Total CRM: handles all filter combinations using exact intersection data
   const totalCrmLeads = (() => {
+    // Exact intersection: Primeira Origem × Imobiliária
+    if (filterOrigens.length > 0 && filterImobiliaria.length > 0 && !accountCrmKeys) {
+      let total = 0;
+      for (const o of filterOrigens)
+        for (const imob of filterImobiliaria)
+          total += crmData?.por_origem_imobiliaria?.[o]?.[imob] ?? 0;
+      return total;
+    }
+    // Exact intersection: Última Origem × Imobiliária
+    if (filterUltimaOrigem.length > 0 && filterImobiliaria.length > 0 && !accountCrmKeys) {
+      let total = 0;
+      for (const uo of filterUltimaOrigem)
+        for (const imob of filterImobiliaria)
+          total += crmData?.por_ultima_origem_imobiliaria?.[uo]?.[imob] ?? 0;
+      return total;
+    }
+    // Imobiliária only (or with account filter fallback)
     if (filterImobiliaria.length) {
-      // Use empreendimentos (already filtered by ALL active filters) as the allowed set
       const allowedEmps = new Set(empreendimentos.map(e => e.empreendimento));
       return filterImobiliaria.reduce((sum, imob) => {
         const empMap = crmData?.por_imobiliaria_emp[imob] ?? {};

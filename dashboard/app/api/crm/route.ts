@@ -166,8 +166,10 @@ export async function GET(request: NextRequest) {
     por_situacao: {} as Record<string, number>,
     por_origem: {} as Record<string, number>,
     por_origem_emp: {} as Record<string, Record<string, number>>,
+    por_origem_imobiliaria: {} as Record<string, Record<string, number>>,
     por_ultima_origem: {} as Record<string, number>,
     por_ultima_origem_emp: {} as Record<string, Record<string, number>>,
+    por_ultima_origem_imobiliaria: {} as Record<string, Record<string, number>>,
     por_imobiliaria_emp: {} as Record<string, Record<string, number>>,
     por_imobiliaria_emp_sit: {} as Record<string, Record<string, Record<string, number>>>,
     por_empreendimento: result,
@@ -195,6 +197,13 @@ export async function GET(request: NextRequest) {
     const imob = normalizeImobiliaria(lead["Imobiliária"]);
     if (!totals.por_imobiliaria_emp[imob]) totals.por_imobiliaria_emp[imob] = {};
     totals.por_imobiliaria_emp[imob][empTotal] = (totals.por_imobiliaria_emp[imob][empTotal] || 0) + 1;
+
+    // Intersection aggregates: origem × imobiliária
+    if (!totals.por_origem_imobiliaria[origem]) totals.por_origem_imobiliaria[origem] = {};
+    totals.por_origem_imobiliaria[origem][imob] = (totals.por_origem_imobiliaria[origem][imob] || 0) + 1;
+
+    if (!totals.por_ultima_origem_imobiliaria[ultimaOrigem]) totals.por_ultima_origem_imobiliaria[ultimaOrigem] = {};
+    totals.por_ultima_origem_imobiliaria[ultimaOrigem][imob] = (totals.por_ultima_origem_imobiliaria[ultimaOrigem][imob] || 0) + 1;
 
     const sitTotal = lead["Situação"] || "Não definido";
     if (!totals.por_imobiliaria_emp_sit[imob]) totals.por_imobiliaria_emp_sit[imob] = {};
