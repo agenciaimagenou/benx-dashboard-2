@@ -100,7 +100,6 @@ export default function Dashboard() {
 
   const [metaData, setMetaData]       = useState<MetaSummaryByAccount[]>([]);
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
-  const [selectedImobiliaria, setSelectedImobiliaria] = useState<string[]>([]);
   const [crmData, setCrmData]         = useState<CRMResponse | null>(null);
   const [analyticsData, setAnalytics] = useState<AnalyticsData | null>(null);
   const [stuckThreshold, setStuck]    = useState(3);
@@ -144,7 +143,6 @@ export default function Dashboard() {
     : metaData.filter(m => selectedAccounts.includes(m.ad_account_name));
 
   const accountOptions = META_ACCOUNTS.map(a => a.name);
-  const imobiliariasOptions = analyticsData?.imobiliarias_list ?? [];
 
   // Merge Meta + CRM with fuzzy name matching (uses filtered accounts)
   const crmEmpNames = crmData?.por_empreendimento.map(c => c.empreendimento) ?? [];
@@ -181,17 +179,10 @@ export default function Dashboard() {
 
   const stuckCount = analyticsData?.resumo_parados.total_parados_3d ?? 0;
 
-  // Total CRM filtered by selected accounts and/or imobiliária
-  const filteredCrmLeads = (() => {
-    if (selectedImobiliaria.length > 0) {
-      return selectedImobiliaria.reduce((sum, imob) => {
-        const empMap = crmData?.por_imobiliaria_emp?.[imob] ?? {};
-        return sum + Object.values(empMap).reduce((a, cnt) => a + cnt, 0);
-      }, 0);
-    }
-    if (selectedAccounts.length === 0) return crmData?.total_leads ?? 0;
-    return mergedData.reduce((s, m) => s + m.crm_leads, 0);
-  })();
+  // Total CRM filtered by selected accounts
+  const filteredCrmLeads = selectedAccounts.length === 0
+    ? (crmData?.total_leads ?? 0)
+    : mergedData.reduce((s, m) => s + m.crm_leads, 0);
 
   function handleDateChange(range: DateRange) {
     setDateRange(range);
@@ -237,12 +228,6 @@ export default function Dashboard() {
               selected={selectedAccounts}
               onChange={setSelectedAccounts}
             />
-            <MultiSelectDropdown
-              label="Todas as imobiliárias"
-              options={imobiliariasOptions}
-              selected={selectedImobiliaria}
-              onChange={setSelectedImobiliaria}
-            />
             <button
               onClick={() => fetchData(dateRange, stuckThreshold)}
               disabled={loading}
@@ -280,7 +265,6 @@ export default function Dashboard() {
               metaData={filteredMetaData}
               loading={loading}
               accountCrmKeys={selectedAccounts.length > 0 ? filteredMetaData.map(m => m.crm_key) : null}
-              filterImobiliaria={selectedImobiliaria.length > 0 ? selectedImobiliaria : null}
             />
           )}
           {activePage === "analytics" && (
@@ -292,8 +276,8 @@ export default function Dashboard() {
               totalLeadsCrm={filteredCrmLeads}
               crmPorOrigem={crmData?.por_origem ?? null}
               crmPorOrigemEmp={crmData?.por_origem_emp ?? null}
+              crmPorImobiliariaEmp={crmData?.por_imobiliaria_emp ?? null}
               accountCrmKeys={selectedAccounts.length > 0 ? filteredMetaData.map(m => m.crm_key) : null}
-              filterImobiliaria={selectedImobiliaria.length > 0 ? selectedImobiliaria : null}
             />
           )}
         </main>

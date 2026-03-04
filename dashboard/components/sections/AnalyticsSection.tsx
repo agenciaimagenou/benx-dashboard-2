@@ -60,6 +60,7 @@ interface AnalyticsData {
   }>;
   corretores_parados: CorretorParado[];
   corretores_total: Record<string, number>;
+  imobiliarias_list: string[];
   resumo_parados: {
     total_parados_3d: number;
     total_parados_7d: number;
@@ -76,8 +77,8 @@ interface Props {
   totalLeadsCrm: number;
   crmPorOrigem?: Record<string, number> | null;
   crmPorOrigemEmp?: Record<string, Record<string, number>> | null;
+  crmPorImobiliariaEmp?: Record<string, Record<string, number>> | null;
   accountCrmKeys?: string[] | null;
-  filterImobiliaria?: string[] | null;
 }
 
 function computeCorretores(leads: StuckLead[]): CorretorParado[] {
@@ -101,20 +102,23 @@ function computeCorretores(leads: StuckLead[]): CorretorParado[] {
     .slice(0, 25);
 }
 
-export default function AnalyticsSection({ data, loading, stuckThreshold, onThresholdChange, totalLeadsCrm, crmPorOrigem, crmPorOrigemEmp, accountCrmKeys, filterImobiliaria }: Props) {
+export default function AnalyticsSection({ data, loading, stuckThreshold, onThresholdChange, totalLeadsCrm, crmPorOrigem, crmPorOrigemEmp, crmPorImobiliariaEmp, accountCrmKeys }: Props) {
   const [filterOrigens, setFilterOrigens] = useState<string[]>([]);
+  const [filterImobiliaria, setFilterImobiliaria] = useState<string[]>([]);
 
   const origemOptions = useMemo(() => {
     if (!data) return [];
     return Array.from(new Set(data.leads_parados.map(l => l.origem || "Não definido"))).sort();
   }, [data]);
 
+  const imobiliariasOptions = data?.imobiliarias_list ?? [];
+
   const filteredLeads = useMemo(() => {
     if (!data) return [];
     return data.leads_parados.filter(l => {
       if (accountCrmKeys && !matchesAccount(l.empreendimento, accountCrmKeys)) return false;
       if (filterOrigens.length > 0 && !filterOrigens.includes(l.origem || "Não definido")) return false;
-      if (filterImobiliaria?.length && !filterImobiliaria.includes(l.imobiliaria)) return false;
+      if (filterImobiliaria.length && !filterImobiliaria.includes(l.imobiliaria)) return false;
       return true;
     });
   }, [data, accountCrmKeys, filterOrigens, filterImobiliaria]);
@@ -126,7 +130,7 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
 
   // Recompute tempo_por_situacao from filteredLeads when any filter is active
   const filteredTempoPorSituacao = useMemo(() => {
-    const anyFilter = !!accountCrmKeys || filterOrigens.length > 0 || !!filterImobiliaria?.length;
+    const anyFilter = !!accountCrmKeys || filterOrigens.length > 0 || !!filterImobiliaria.length;
     if (!anyFilter) return data?.tempo_por_situacao ?? [];
     const bySit: Record<string, number[]> = {};
     for (const l of filteredLeads) {
@@ -156,7 +160,7 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
 
   const resumo = useMemo(() => {
     if (!data) return null;
-    const hasFilter = !!accountCrmKeys || filterOrigens.length > 0 || !!filterImobiliaria?.length;
+    const hasFilter = !!accountCrmKeys || filterOrigens.length > 0 || !!filterImobiliaria.length;
     if (!hasFilter) return data.resumo_parados;
     return {
       total_parados_3d:  filteredLeads.filter(l => l.dias_parado >= 3).length,
@@ -168,9 +172,20 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
     };
   }, [data, accountCrmKeys, filterOrigens, filteredLeads]);
 
-  const hasFilter = filterOrigens.length > 0 || !!filterImobiliaria?.length;
+  const hasFilter = filterOrigens.length > 0 || !!filterImobiliaria.length;
 
   const displayTotal = useMemo(() => {
+    // Imobiliária filter active — sum from crmPorImobiliariaEmp
+    if (filterImobiliaria.length > 0 && crmPorImobiliariaEmp) {
+      return filterImobiliaria.reduce((sum, imob) => {
+        const empMap = crmPorImobiliariaEmp[imob] ?? {};
+        return sum + Object.entries(empMap).reduce((a, [emp, cnt]) => {
+          if (accountCrmKeys && !matchesAccount(emp, accountCrmKeys)) return a;
+          return a + cnt;
+        }, 0);
+      }, 0);
+    }
+
     // No origem filter — totalLeadsCrm already reflects the account filter from parent
     if (filterOrigens.length === 0) return totalLeadsCrm;
 
@@ -192,7 +207,7 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
     }
 
     return totalLeadsCrm;
-  }, [filterOrigens, accountCrmKeys, crmPorOrigem, crmPorOrigemEmp, totalLeadsCrm]);
+  }, [filterImobiliaria, filterOrigens, accountCrmKeys, crmPorOrigem, crmPorOrigemEmp, crmPorImobiliariaEmp, totalLeadsCrm]);
 
   return (
     <div className="space-y-6">
@@ -211,9 +226,17 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
           onChange={setFilterOrigens}
         />
 
+        {/* Imobiliária — multi select */}
+        <MultiSelectDropdown
+          label="Todas as imobiliárias"
+          options={imobiliariasOptions}
+          selected={filterImobiliaria}
+          onChange={setFilterImobiliaria}
+        />
+
         {hasFilter && (
           <>
-            <button onClick={() => setFilterOrigens([])} className="text-xs text-blue-600 hover:underline">
+            <button onClick={() => { setFilterOrigens([]); setFilterImobiliaria([]); }} className="text-xs text-blue-600 hover:underline">
               Limpar filtros
             </button>
             <span className="text-xs text-gray-400 ml-auto">
