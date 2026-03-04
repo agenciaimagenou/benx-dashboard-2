@@ -184,7 +184,12 @@ export default function CorretoresParadosTable({ data, leads, corretoresTotal, l
             </thead>
             <tbody className="divide-y divide-gray-50">
               {sorted.map((row, i) => {
-                const situations = Object.entries(row.por_situacao).sort((a, b) => b[1] - a[1]);
+                const situations = Object.entries(row.por_situacao)
+                  .filter(([sit]) => {
+                    const s = sit.toLowerCase();
+                    return !s.includes("descart") && !s.includes("venda") && !s.includes("ganho");
+                  })
+                  .sort((a, b) => b[1] - a[1]);
                 const totalLeads = corretoresTotal[row.corretor] ?? row.total_parados;
                 return (
                   <tr key={row.corretor} className="hover:bg-gray-50/50 transition-colors">
