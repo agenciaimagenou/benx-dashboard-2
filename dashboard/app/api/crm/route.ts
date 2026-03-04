@@ -166,10 +166,13 @@ export async function GET(request: NextRequest) {
     por_situacao: {} as Record<string, number>,
     por_origem: {} as Record<string, number>,
     por_origem_emp: {} as Record<string, Record<string, number>>,
+    por_ultima_origem: {} as Record<string, number>,
+    por_ultima_origem_emp: {} as Record<string, Record<string, number>>,
     por_imobiliaria_emp: {} as Record<string, Record<string, number>>,
     por_imobiliaria_emp_sit: {} as Record<string, Record<string, Record<string, number>>>,
     por_empreendimento: result,
     origens_list: [] as string[],
+    ultimas_origens_list: [] as string[],
   };
 
   // Aggregate situações for the full funnel
@@ -184,6 +187,11 @@ export async function GET(request: NextRequest) {
     if (!totals.por_origem_emp[origem]) totals.por_origem_emp[origem] = {};
     totals.por_origem_emp[origem][empTotal] = (totals.por_origem_emp[origem][empTotal] || 0) + 1;
 
+    const ultimaOrigem = normalizeOrigem(lead["Última Origem"]);
+    totals.por_ultima_origem[ultimaOrigem] = (totals.por_ultima_origem[ultimaOrigem] || 0) + 1;
+    if (!totals.por_ultima_origem_emp[ultimaOrigem]) totals.por_ultima_origem_emp[ultimaOrigem] = {};
+    totals.por_ultima_origem_emp[ultimaOrigem][empTotal] = (totals.por_ultima_origem_emp[ultimaOrigem][empTotal] || 0) + 1;
+
     const imob = normalizeImobiliaria(lead["Imobiliária"]);
     if (!totals.por_imobiliaria_emp[imob]) totals.por_imobiliaria_emp[imob] = {};
     totals.por_imobiliaria_emp[imob][empTotal] = (totals.por_imobiliaria_emp[imob][empTotal] || 0) + 1;
@@ -195,6 +203,7 @@ export async function GET(request: NextRequest) {
   }
 
   totals.origens_list = Object.keys(totals.por_origem).sort();
+  totals.ultimas_origens_list = Object.keys(totals.por_ultima_origem).sort();
 
   // ── Override Visita Agendada / Visita Realizada from Visitas table ──────────
   const filteredLeadIds = new Set(filtered.map((l) => l["Id"] as number));

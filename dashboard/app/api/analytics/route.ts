@@ -84,6 +84,7 @@ export interface StuckLeadEntry {
   corretor: string;
   imobiliaria: string;
   origem: string;
+  ultima_origem: string;
   data_cadastro: string | null;
   dias_parado: number;
   ultima_atualizacao: string | null;
@@ -123,6 +124,7 @@ export interface AnalyticsResponse {
   corretores_parados: CorretorParado[];
   corretores_total: Record<string, number>;
   imobiliarias_list: string[];
+  ultimas_origens_list: string[];
   resumo_parados: {
     total_parados_3d: number;
     total_parados_7d: number;
@@ -158,7 +160,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Fetch all leads with pagination (Supabase default cap is 1000 rows)
-  const SELECT = `Id, "Situação", "Nome", "Empreendimento", "Primeiro Empreendimento", "Corretor", "Imobiliária", "Primeira Origem", "Data da Última Interação", "Hora da Última Interação", "Data da Última Entrada", "Hora da Última Entrada", "Data Primeiro Cadastro", "Dias sem contato", "Motivo de Cancelamento", "Descrição do Motivo de Cancelamento", "Submotivo de Cancelamento", "Lead vencido"`;
+  const SELECT = `Id, "Situação", "Nome", "Empreendimento", "Primeiro Empreendimento", "Corretor", "Imobiliária", "Primeira Origem", "Última Origem", "Data da Última Interação", "Hora da Última Interação", "Data da Última Entrada", "Hora da Última Entrada", "Data Primeiro Cadastro", "Dias sem contato", "Motivo de Cancelamento", "Descrição do Motivo de Cancelamento", "Submotivo de Cancelamento", "Lead vencido"`;
   const PAGE = 1000;
   const allLeads: Record<string, unknown>[] = [];
   let from = 0;
@@ -242,6 +244,7 @@ export async function GET(request: NextRequest) {
         corretor: lead["Corretor"] || "—",
         imobiliaria: normalizeImobiliaria(lead["Imobiliária"]),
         origem: normalizeOrigem(lead["Primeira Origem"]),
+        ultima_origem: normalizeOrigem(lead["Última Origem"]),
         data_cadastro: lead["Data Primeiro Cadastro"] || null,
         dias_parado: diasParado,
         ultima_atualizacao: (lead["Data da Última Interação"] as string) || (lead["Data da Última Entrada"] as string) || null,
@@ -399,10 +402,12 @@ export async function GET(request: NextRequest) {
   // Total de leads por corretor (todos no período, não apenas parados)
   const corretoresTotal: Record<string, number> = {};
   const imobiliariasSet = new Set<string>();
+  const ultimasOrigensSet = new Set<string>();
   for (const lead of filtered) {
     const c = String(lead["Corretor"] || "").split(" - ")[0].trim() || "Não atribuído";
     corretoresTotal[c] = (corretoresTotal[c] || 0) + 1;
     imobiliariasSet.add(normalizeImobiliaria(lead["Imobiliária"]));
+    ultimasOrigensSet.add(normalizeOrigem(lead["Última Origem"]));
   }
 
   const response: AnalyticsResponse = {
@@ -412,6 +417,7 @@ export async function GET(request: NextRequest) {
     corretores_parados: corretoresParados,
     corretores_total: corretoresTotal,
     imobiliarias_list: Array.from(imobiliariasSet).sort(),
+    ultimas_origens_list: Array.from(ultimasOrigensSet).sort(),
     resumo_parados: {
       total_parados_3d: totalParados3d,
       total_parados_7d: totalParados7d,

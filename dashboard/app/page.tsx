@@ -24,8 +24,10 @@ interface CRMResponse {
   por_situacao: Record<string, number>;
   por_origem: Record<string, number>;
   por_origem_emp: Record<string, Record<string, number>>;
+  por_ultima_origem_emp: Record<string, Record<string, number>>;
   por_imobiliaria_emp: Record<string, Record<string, number>>;
   por_imobiliaria_emp_sit: Record<string, Record<string, Record<string, number>>>;
+  ultimas_origens_list: string[];
   por_empreendimento: Array<{
     empreendimento: string;
     total_leads: number;
@@ -56,12 +58,14 @@ interface AnalyticsData {
     corretor: string;
     imobiliaria: string;
     origem: string;
+    ultima_origem: string;
     data_cadastro: string | null;
     dias_parado: number;
     ultima_atualizacao: string | null;
     dias_sem_contato: number;
   }>;
   imobiliarias_list: string[];
+  ultimas_origens_list: string[];
   motivos_descarte: Array<{
     motivo: string;
     descricao: string;
@@ -277,6 +281,7 @@ export default function Dashboard() {
               crmPorOrigem={crmData?.por_origem ?? null}
               crmPorOrigemEmp={crmData?.por_origem_emp ?? null}
               crmPorImobiliariaEmp={crmData?.por_imobiliaria_emp ?? null}
+              crmPorUltimaOrigemEmp={crmData?.por_ultima_origem_emp ?? null}
               accountCrmKeys={selectedAccounts.length > 0 ? filteredMetaData.map(m => m.crm_key) : null}
             />
           )}

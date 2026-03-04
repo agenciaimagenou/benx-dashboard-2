@@ -37,10 +37,12 @@ interface CRMResponse {
   por_situacao: Record<string, number>;
   por_origem: Record<string, number>;
   por_origem_emp: Record<string, Record<string, number>>;
+  por_ultima_origem_emp: Record<string, Record<string, number>>;
   por_imobiliaria_emp: Record<string, Record<string, number>>;
   por_imobiliaria_emp_sit: Record<string, Record<string, Record<string, number>>>;
   por_empreendimento: CRMEmp[];
   origens_list: string[];
+  ultimas_origens_list: string[];
 }
 
 interface Props {
@@ -69,6 +71,7 @@ type FunnelSortKey = "empreendimento" | "total" | "conversao";
 
 export default function CRMSection({ crmData, metaData, loading, accountCrmKeys }: Props) {
   const [filterOrigens, setFilterOrigens] = useState<string[]>([]);
+  const [filterUltimaOrigem, setFilterUltimaOrigem] = useState<string[]>([]);
   const [filterImobiliaria, setFilterImobiliaria] = useState<string[]>([]);
   const [funnelSort, setFunnelSort] = useState<FunnelSortKey>("total");
   const [funnelDir, setFunnelDir] = useState<"asc" | "desc">("desc");
@@ -85,6 +88,7 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
       : <ChevronDown className="w-3 h-3 text-blue-500 flex-shrink-0" />;
   }
   const imobiliariasOptions = Object.keys(crmData?.por_imobiliaria_emp ?? {}).sort();
+  const ultimasOrigensOptions = crmData?.ultimas_origens_list ?? [];
   const [vendaModal, setVendaModal] = useState<{ empreendimento: string; leads: LeadGanho[] } | null>(null);
 
   const totalSpend    = metaData.reduce((s, m) => s + m.total_spend, 0);
@@ -98,6 +102,10 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
       const hasLead = filterOrigens.some(o => (crmData?.por_origem_emp[o]?.[e.empreendimento] ?? 0) > 0);
       if (!hasLead) return false;
     }
+    if (filterUltimaOrigem.length > 0) {
+      const hasLead = filterUltimaOrigem.some(uo => (crmData?.por_ultima_origem_emp?.[uo]?.[e.empreendimento] ?? 0) > 0);
+      if (!hasLead) return false;
+    }
     if (filterImobiliaria.length) {
       const hasLead = filterImobiliaria.some(imob => (crmData?.por_imobiliaria_emp[imob]?.[e.empreendimento] ?? 0) > 0);
       if (!hasLead) return false;
@@ -105,7 +113,7 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
     return true;
   });
 
-  const hasFilter = filterOrigens.length > 0 || !!filterImobiliaria.length;
+  const hasFilter = filterOrigens.length > 0 || filterUltimaOrigem.length > 0 || !!filterImobiliaria.length;
 
   // Effective total/situacao per empreendimento when imobiliária filter is active
   function empImobTotal(empName: string): number {
@@ -129,6 +137,17 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
     if (filterOrigens.length > 0) {
       return filterOrigens.reduce((sum, o) => {
         const empMap = crmData?.por_origem_emp[o] ?? {};
+        return sum + Object.entries(empMap).reduce((a, [emp, cnt]) => {
+          if (accountCrmKeys && !matchesAccount(emp, accountCrmKeys)) return a;
+          if (filterUltimaOrigem.length > 0 && !(filterUltimaOrigem.some(uo => (crmData?.por_ultima_origem_emp?.[uo]?.[emp] ?? 0) > 0))) return a;
+          if (filterImobiliaria.length && !(filterImobiliaria.some(imob => (crmData?.por_imobiliaria_emp[imob]?.[emp] ?? 0) > 0))) return a;
+          return a + cnt;
+        }, 0);
+      }, 0);
+    }
+    if (filterUltimaOrigem.length > 0) {
+      return filterUltimaOrigem.reduce((sum, uo) => {
+        const empMap = crmData?.por_ultima_origem_emp?.[uo] ?? {};
         return sum + Object.entries(empMap).reduce((a, [emp, cnt]) => {
           if (accountCrmKeys && !matchesAccount(emp, accountCrmKeys)) return a;
           if (filterImobiliaria.length && !(filterImobiliaria.some(imob => (crmData?.por_imobiliaria_emp[imob]?.[emp] ?? 0) > 0))) return a;
@@ -201,10 +220,16 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
           Filtros
         </div>
         <MultiSelectDropdown
-          label="Todas origens"
+          label="Primeira Origem"
           options={origemOptions}
           selected={filterOrigens}
           onChange={setFilterOrigens}
+        />
+        <MultiSelectDropdown
+          label="Última Origem"
+          options={ultimasOrigensOptions}
+          selected={filterUltimaOrigem}
+          onChange={setFilterUltimaOrigem}
         />
         <MultiSelectDropdown
           label="Todas as imobiliárias"
@@ -215,7 +240,7 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
         {hasFilter && (
           <>
             <button
-              onClick={() => { setFilterOrigens([]); setFilterImobiliaria([]); }}
+              onClick={() => { setFilterOrigens([]); setFilterUltimaOrigem([]); setFilterImobiliaria([]); }}
               className="text-xs text-blue-600 hover:underline"
             >
               Limpar filtros
