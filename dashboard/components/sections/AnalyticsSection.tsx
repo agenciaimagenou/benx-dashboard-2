@@ -58,6 +58,7 @@ interface AnalyticsData {
     submotivo: string;
     empreendimento: string;
     count: number;
+    leads?: Array<{ id: number; nome: string; corretor: string; empreendimento: string; data_cadastro: string | null }>;
   }>;
   corretores_parados: CorretorParado[];
   corretores_total: Record<string, number>;

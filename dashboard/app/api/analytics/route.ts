@@ -101,12 +101,21 @@ export interface TempoSituacao {
   parados_15dias: number;
 }
 
+export interface MotivoDescarteLead {
+  id: number;
+  nome: string;
+  corretor: string;
+  empreendimento: string;
+  data_cadastro: string | null;
+}
+
 export interface MotivoDescarte {
   motivo: string;
   descricao: string;
   submotivo: string;
   empreendimento: string;
   count: number;
+  leads: MotivoDescarteLead[];
 }
 
 export interface CorretorParado {
@@ -369,9 +378,16 @@ export async function GET(request: NextRequest) {
 
     const key = `${motivo}|${descricao}|${emp}`;
     if (!descarteMap[key]) {
-      descarteMap[key] = { motivo, descricao, submotivo, empreendimento: emp, count: 0 };
+      descarteMap[key] = { motivo, descricao, submotivo, empreendimento: emp, count: 0, leads: [] };
     }
     descarteMap[key].count++;
+    descarteMap[key].leads.push({
+      id: lead["Id"] as number,
+      nome: (lead["Nome"] || "—") as string,
+      corretor: (lead["Corretor"] || "—") as string,
+      empreendimento: emp,
+      data_cadastro: (lead["Data Primeiro Cadastro"] || null) as string | null,
+    });
   }
 
   const motivosDescarte = Object.values(descarteMap).sort((a, b) => b.count - a.count);
