@@ -53,11 +53,9 @@ function daysBetween(from: Date, to: Date): number {
   return Math.floor((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function extractImobiliaria(corretor: unknown): string {
-  const c = String(corretor || "").trim();
-  const idx = c.indexOf(" - ");
-  if (idx === -1) return "Sem imobiliária";
-  return c.slice(idx + 3).trim() || "Sem imobiliária";
+function normalizeImobiliaria(imob: unknown): string {
+  const s = String(imob || "").trim();
+  return s || "Sem imobiliária";
 }
 
 function normalizeOrigem(origem: unknown): string {
@@ -160,7 +158,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Fetch all leads with pagination (Supabase default cap is 1000 rows)
-  const SELECT = `Id, "Situação", "Nome", "Empreendimento", "Primeiro Empreendimento", "Corretor", "Primeira Origem", "Data da Última Interação", "Hora da Última Interação", "Data da Última Entrada", "Hora da Última Entrada", "Data Primeiro Cadastro", "Dias sem contato", "Motivo de Cancelamento", "Descrição do Motivo de Cancelamento", "Submotivo de Cancelamento", "Lead vencido"`;
+  const SELECT = `Id, "Situação", "Nome", "Empreendimento", "Primeiro Empreendimento", "Corretor", "Imobiliária", "Primeira Origem", "Data da Última Interação", "Hora da Última Interação", "Data da Última Entrada", "Hora da Última Entrada", "Data Primeiro Cadastro", "Dias sem contato", "Motivo de Cancelamento", "Descrição do Motivo de Cancelamento", "Submotivo de Cancelamento", "Lead vencido"`;
   const PAGE = 1000;
   const allLeads: Record<string, unknown>[] = [];
   let from = 0;
@@ -242,7 +240,7 @@ export async function GET(request: NextRequest) {
         situacao: sit,
         empreendimento: (lead["Primeiro Empreendimento"] || lead["Empreendimento"] || "—") as string,
         corretor: lead["Corretor"] || "—",
-        imobiliaria: extractImobiliaria(lead["Corretor"]),
+        imobiliaria: normalizeImobiliaria(lead["Imobiliária"]),
         origem: normalizeOrigem(lead["Primeira Origem"]),
         data_cadastro: lead["Data Primeiro Cadastro"] || null,
         dias_parado: diasParado,
@@ -404,7 +402,7 @@ export async function GET(request: NextRequest) {
   for (const lead of filtered) {
     const c = String(lead["Corretor"] || "").split(" - ")[0].trim() || "Não atribuído";
     corretoresTotal[c] = (corretoresTotal[c] || 0) + 1;
-    imobiliariasSet.add(extractImobiliaria(lead["Corretor"]));
+    imobiliariasSet.add(normalizeImobiliaria(lead["Imobiliária"]));
   }
 
   const response: AnalyticsResponse = {

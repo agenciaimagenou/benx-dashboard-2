@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
-function extractImobiliaria(corretor: unknown): string {
-  const c = String(corretor || "").trim();
-  const idx = c.indexOf(" - ");
-  if (idx === -1) return "Sem imobiliária";
-  return c.slice(idx + 3).trim() || "Sem imobiliária";
+function normalizeImobiliaria(imob: unknown): string {
+  const s = String(imob || "").trim();
+  return s || "Sem imobiliária";
 }
 
 function normalizeOrigem(origem: unknown): string {
@@ -34,7 +32,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Fetch all leads with pagination (Supabase default cap is 1000 rows)
-  const SELECT = `Id, "Situação", "Nome", "Corretor", "Data Primeiro Cadastro", "Empreendimento", "Primeiro Empreendimento", "Convertido", "Reserva", "Ganhos", "Perdas", "Primeira Origem", "Última Origem", "Score"`;
+  const SELECT = `Id, "Situação", "Nome", "Corretor", "Imobiliária", "Data Primeiro Cadastro", "Empreendimento", "Primeiro Empreendimento", "Convertido", "Reserva", "Ganhos", "Perdas", "Primeira Origem", "Última Origem", "Score"`;
   const PAGE = 1000;
   const allLeads: Record<string, unknown>[] = [];
   let from = 0;
@@ -185,7 +183,7 @@ export async function GET(request: NextRequest) {
     if (!totals.por_origem_emp[origem]) totals.por_origem_emp[origem] = {};
     totals.por_origem_emp[origem][empTotal] = (totals.por_origem_emp[origem][empTotal] || 0) + 1;
 
-    const imob = extractImobiliaria(lead["Corretor"]);
+    const imob = normalizeImobiliaria(lead["Imobiliária"]);
     if (!totals.por_imobiliaria_emp[imob]) totals.por_imobiliaria_emp[imob] = {};
     totals.por_imobiliaria_emp[imob][empTotal] = (totals.por_imobiliaria_emp[imob][empTotal] || 0) + 1;
   }
