@@ -221,10 +221,11 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
       {/* Funnel + Origem */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <FunnelChart porSituacao={(() => {
-          if (!accountCrmKeys && filterOrigens.length === 0) return crmData?.por_situacao ?? {};
+          if (!accountCrmKeys && filterOrigens.length === 0 && !filterImobiliaria?.length) return crmData?.por_situacao ?? {};
           const merged: Record<string, number> = {};
           empreendimentos.forEach(emp => {
-            Object.entries(emp.por_situacao ?? {}).forEach(([sit, cnt]) => {
+            const sitMap = filterImobiliaria?.length ? empImobSit(emp.empreendimento) : (emp.por_situacao ?? {});
+            Object.entries(sitMap).forEach(([sit, cnt]) => {
               merged[sit] = (merged[sit] ?? 0) + cnt;
             });
           });
