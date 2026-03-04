@@ -133,14 +133,26 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
   }
 
   // Total CRM: handles all filter combinations
+  // When imobiliária is active, use it as base and restrict to empreendimentos
+  // that also pass all other active filters (avoids overcounting in intersections).
   const totalCrmLeads = (() => {
+    if (filterImobiliaria.length) {
+      // Use empreendimentos (already filtered by ALL active filters) as the allowed set
+      const allowedEmps = new Set(empreendimentos.map(e => e.empreendimento));
+      return filterImobiliaria.reduce((sum, imob) => {
+        const empMap = crmData?.por_imobiliaria_emp[imob] ?? {};
+        return sum + Object.entries(empMap).reduce((a, [emp, cnt]) => {
+          if (!allowedEmps.has(emp)) return a;
+          return a + cnt;
+        }, 0);
+      }, 0);
+    }
     if (filterOrigens.length > 0) {
       return filterOrigens.reduce((sum, o) => {
         const empMap = crmData?.por_origem_emp[o] ?? {};
         return sum + Object.entries(empMap).reduce((a, [emp, cnt]) => {
           if (accountCrmKeys && !matchesAccount(emp, accountCrmKeys)) return a;
           if (filterUltimaOrigem.length > 0 && !(filterUltimaOrigem.some(uo => (crmData?.por_ultima_origem_emp?.[uo]?.[emp] ?? 0) > 0))) return a;
-          if (filterImobiliaria.length && !(filterImobiliaria.some(imob => (crmData?.por_imobiliaria_emp[imob]?.[emp] ?? 0) > 0))) return a;
           return a + cnt;
         }, 0);
       }, 0);
@@ -148,16 +160,6 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
     if (filterUltimaOrigem.length > 0) {
       return filterUltimaOrigem.reduce((sum, uo) => {
         const empMap = crmData?.por_ultima_origem_emp?.[uo] ?? {};
-        return sum + Object.entries(empMap).reduce((a, [emp, cnt]) => {
-          if (accountCrmKeys && !matchesAccount(emp, accountCrmKeys)) return a;
-          if (filterImobiliaria.length && !(filterImobiliaria.some(imob => (crmData?.por_imobiliaria_emp[imob]?.[emp] ?? 0) > 0))) return a;
-          return a + cnt;
-        }, 0);
-      }, 0);
-    }
-    if (filterImobiliaria.length) {
-      return filterImobiliaria.reduce((sum, imob) => {
-        const empMap = crmData?.por_imobiliaria_emp[imob] ?? {};
         return sum + Object.entries(empMap).reduce((a, [emp, cnt]) => {
           if (accountCrmKeys && !matchesAccount(emp, accountCrmKeys)) return a;
           return a + cnt;

@@ -182,12 +182,15 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
   const hasFilter = filterOrigens.length > 0 || filterUltimaOrigem.length > 0 || !!filterImobiliaria.length;
 
   const displayTotal = useMemo(() => {
-    // Imobiliária filter active — sum from crmPorImobiliariaEmp
+    // Imobiliária filter active — sum from crmPorImobiliariaEmp,
+    // restricted to empreendimentos that also pass the origin filters
     if (filterImobiliaria.length > 0 && crmPorImobiliariaEmp) {
       return filterImobiliaria.reduce((sum, imob) => {
         const empMap = crmPorImobiliariaEmp[imob] ?? {};
         return sum + Object.entries(empMap).reduce((a, [emp, cnt]) => {
           if (accountCrmKeys && !matchesAccount(emp, accountCrmKeys)) return a;
+          if (filterOrigens.length > 0 && !(filterOrigens.some(o => (crmPorOrigemEmp?.[o]?.[emp] ?? 0) > 0))) return a;
+          if (filterUltimaOrigem.length > 0 && !(filterUltimaOrigem.some(uo => (crmPorUltimaOrigemEmp?.[uo]?.[emp] ?? 0) > 0))) return a;
           return a + cnt;
         }, 0);
       }, 0);
