@@ -25,6 +25,7 @@ interface CRMResponse {
   por_origem: Record<string, number>;
   por_origem_emp: Record<string, Record<string, number>>;
   por_imobiliaria_emp: Record<string, Record<string, number>>;
+  por_imobiliaria_emp_sit: Record<string, Record<string, Record<string, number>>>;
   por_empreendimento: Array<{
     empreendimento: string;
     total_leads: number;

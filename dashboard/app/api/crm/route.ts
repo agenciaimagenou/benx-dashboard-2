@@ -167,6 +167,7 @@ export async function GET(request: NextRequest) {
     por_origem: {} as Record<string, number>,
     por_origem_emp: {} as Record<string, Record<string, number>>,
     por_imobiliaria_emp: {} as Record<string, Record<string, number>>,
+    por_imobiliaria_emp_sit: {} as Record<string, Record<string, Record<string, number>>>,
     por_empreendimento: result,
     origens_list: [] as string[],
   };
@@ -186,6 +187,11 @@ export async function GET(request: NextRequest) {
     const imob = normalizeImobiliaria(lead["Imobiliária"]);
     if (!totals.por_imobiliaria_emp[imob]) totals.por_imobiliaria_emp[imob] = {};
     totals.por_imobiliaria_emp[imob][empTotal] = (totals.por_imobiliaria_emp[imob][empTotal] || 0) + 1;
+
+    const sitTotal = lead["Situação"] || "Não definido";
+    if (!totals.por_imobiliaria_emp_sit[imob]) totals.por_imobiliaria_emp_sit[imob] = {};
+    if (!totals.por_imobiliaria_emp_sit[imob][empTotal]) totals.por_imobiliaria_emp_sit[imob][empTotal] = {};
+    totals.por_imobiliaria_emp_sit[imob][empTotal][sitTotal] = (totals.por_imobiliaria_emp_sit[imob][empTotal][sitTotal] || 0) + 1;
   }
 
   totals.origens_list = Object.keys(totals.por_origem).sort();

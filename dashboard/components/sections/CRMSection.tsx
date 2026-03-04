@@ -38,6 +38,7 @@ interface CRMResponse {
   por_origem: Record<string, number>;
   por_origem_emp: Record<string, Record<string, number>>;
   por_imobiliaria_emp: Record<string, Record<string, number>>;
+  por_imobiliaria_emp_sit: Record<string, Record<string, Record<string, number>>>;
   por_empreendimento: CRMEmp[];
   origens_list: string[];
 }
@@ -89,6 +90,23 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
 
   const hasFilter = filterOrigens.length > 0 || !!filterImobiliaria?.length;
 
+  // Effective total/situacao per empreendimento when imobiliária filter is active
+  function empImobTotal(empName: string): number {
+    if (!filterImobiliaria?.length) return 0;
+    return filterImobiliaria.reduce((sum, imob) => sum + (crmData?.por_imobiliaria_emp[imob]?.[empName] ?? 0), 0);
+  }
+  function empImobSit(empName: string): Record<string, number> {
+    if (!filterImobiliaria?.length) return {};
+    const merged: Record<string, number> = {};
+    for (const imob of filterImobiliaria) {
+      const sitMap = crmData?.por_imobiliaria_emp_sit[imob]?.[empName] ?? {};
+      for (const [sit, cnt] of Object.entries(sitMap)) {
+        merged[sit] = (merged[sit] || 0) + cnt;
+      }
+    }
+    return merged;
+  }
+
   // Total CRM: handles all filter combinations
   const totalCrmLeads = (() => {
     if (filterOrigens.length > 0) {
@@ -101,11 +119,31 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
         }, 0);
       }, 0);
     }
+    if (filterImobiliaria?.length) {
+      return filterImobiliaria.reduce((sum, imob) => {
+        const empMap = crmData?.por_imobiliaria_emp[imob] ?? {};
+        return sum + Object.entries(empMap).reduce((a, [emp, cnt]) => {
+          if (accountCrmKeys && !matchesAccount(emp, accountCrmKeys)) return a;
+          return a + cnt;
+        }, 0);
+      }, 0);
+    }
     return empreendimentos.reduce((s, e) => s + e.total_leads, 0);
   })();
 
-  const totalGanhos   = empreendimentos.reduce((s, e) => s + e.ganhos, 0);
-  const totalReservas = empreendimentos.reduce((s, e) => s + e.reserva, 0);
+  // When imobiliária filter active, derive ganhos/reservas from situation counts
+  const totalGanhos = filterImobiliaria?.length
+    ? empreendimentos.reduce((s, e) => {
+        const sit = empImobSit(e.empreendimento);
+        return s + Object.entries(sit).filter(([k]) => isVendaSit(k)).reduce((a, [, v]) => a + v, 0);
+      }, 0)
+    : empreendimentos.reduce((s, e) => s + e.ganhos, 0);
+  const totalReservas = filterImobiliaria?.length
+    ? empreendimentos.reduce((s, e) => {
+        const sit = empImobSit(e.empreendimento);
+        return s + (sit["Com Reserva"] ?? 0);
+      }, 0)
+    : empreendimentos.reduce((s, e) => s + e.reserva, 0);
 
   // Origem chart: filter by account when account filter is active
   const porOrigemFiltrado = (() => {
@@ -215,12 +253,17 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
         ) : (() => {
           const sitTotals: Record<string, number> = {};
           empreendimentos.forEach(emp => {
-            Object.entries(emp.por_situacao ?? {}).forEach(([sit, cnt]) => {
+            const sitMap = filterImobiliaria?.length ? empImobSit(emp.empreendimento) : (emp.por_situacao ?? {});
+            Object.entries(sitMap).forEach(([sit, cnt]) => {
               sitTotals[sit] = (sitTotals[sit] || 0) + cnt;
             });
           });
           const sitCols = Object.entries(sitTotals).sort((a, b) => b[1] - a[1]).map(([sit]) => sit);
-          const sortedEmps = [...empreendimentos].sort((a, b) => b.total_leads - a.total_leads);
+          const sortedEmps = [...empreendimentos].sort((a, b) => {
+            const aTotal = filterImobiliaria?.length ? empImobTotal(a.empreendimento) : a.total_leads;
+            const bTotal = filterImobiliaria?.length ? empImobTotal(b.empreendimento) : b.total_leads;
+            return bTotal - aTotal;
+          });
 
           return (
             <div className="overflow-x-auto">
@@ -265,11 +308,13 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
                         {emp.empreendimento}
                       </td>
                       <td className="px-4 py-3 text-right font-bold text-blue-700 bg-blue-50/40 border-r border-gray-100 whitespace-nowrap">
-                        {formatNumber(emp.total_leads)}
+                        {formatNumber(filterImobiliaria?.length ? empImobTotal(emp.empreendimento) : emp.total_leads)}
                       </td>
                       {sitCols.map(sit => {
-                        const cnt = emp.por_situacao?.[sit] ?? 0;
-                        const pct = emp.total_leads > 0 ? ((cnt / emp.total_leads) * 100).toFixed(1) : "0.0";
+                        const effSit = filterImobiliaria?.length ? empImobSit(emp.empreendimento) : (emp.por_situacao ?? {});
+                        const effTotal = filterImobiliaria?.length ? empImobTotal(emp.empreendimento) : emp.total_leads;
+                        const cnt = effSit[sit] ?? 0;
+                        const pct = effTotal > 0 ? ((cnt / effTotal) * 100).toFixed(1) : "0.0";
                         const venda = isVendaSit(sit);
                         return (
                           <td
@@ -305,14 +350,23 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
                         );
                       })}
                       <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <div className="w-12 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${Math.min(emp.conversao_rate, 100)}%` }} />
-                          </div>
-                          <span className={cn("text-xs font-medium", emp.conversao_rate > 0 ? "text-emerald-600" : "text-gray-400")}>
-                            {emp.conversao_rate.toFixed(1)}%
-                          </span>
-                        </div>
+                        {(() => {
+                          const effTotal = filterImobiliaria?.length ? empImobTotal(emp.empreendimento) : emp.total_leads;
+                          const effGanhos = filterImobiliaria?.length
+                            ? Object.entries(empImobSit(emp.empreendimento)).filter(([k]) => isVendaSit(k)).reduce((a, [, v]) => a + v, 0)
+                            : emp.ganhos;
+                          const rate = effTotal > 0 ? (effGanhos / effTotal) * 100 : 0;
+                          return (
+                            <div className="flex items-center justify-end gap-2">
+                              <div className="w-12 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${Math.min(rate, 100)}%` }} />
+                              </div>
+                              <span className={cn("text-xs font-medium", rate > 0 ? "text-emerald-600" : "text-gray-400")}>
+                                {rate.toFixed(1)}%
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </td>
                     </tr>
                   ))}
