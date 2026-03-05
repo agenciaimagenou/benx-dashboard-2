@@ -244,7 +244,7 @@ export async function GET(request: NextRequest) {
     if (diasParado >= 15) bySituacao[sit].parados15++;
 
     // Collect stuck leads (stagnant for at least threshold days, excluding discarded/cancelled)
-    if (!isDescartado(sit) && (diasParado >= stuckThreshold || diasSemContato >= stuckThreshold)) {
+    if (!isDescartado(sit) && diasSemContato >= stuckThreshold) {
       leadsParados.push({
         id: lead["Id"],
         nome: lead["Nome"] || "—",
