@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import pkg from "@/package.json";
 import {
   LayoutDashboard,
   TrendingUp,
@@ -9,7 +10,11 @@ import {
   ChevronLeft,
   ChevronRight,
   BarChart3,
+  LogOut,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase-browser";
+import { useRouter } from "next/navigation";
+import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 
 export type PageId = "overview" | "meta" | "crm" | "analytics";
 
@@ -36,6 +41,16 @@ interface Props {
 }
 
 export default function Sidebar({ active, onChange, collapsed, onToggle, stuckCount }: Props) {
+  const router = useRouter();
+  const supabase = createClient();
+  useSessionTimeout();
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
+
   return (
     <aside
       className={cn(
@@ -100,8 +115,28 @@ export default function Sidebar({ active, onChange, collapsed, onToggle, stuckCo
         })}
       </nav>
 
-      {/* Collapse Toggle */}
-      <div className="p-2 border-t border-gray-50">
+      {/* Bottom actions */}
+      <div className="p-2 border-t border-gray-50 space-y-1">
+        {/* Version */}
+        {!collapsed && (
+          <div className="px-3 py-1.5">
+            <span className="text-[10px] text-gray-300 font-mono">v{pkg.version}</span>
+          </div>
+        )}
+        {/* Logout */}
+        <button
+          onClick={handleLogout}
+          className={cn(
+            "w-full flex items-center gap-3 rounded-xl py-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors",
+            collapsed ? "justify-center px-0" : "px-3"
+          )}
+          title="Sair"
+        >
+          <LogOut className={cn("flex-shrink-0", collapsed ? "w-5 h-5" : "w-4 h-4")} />
+          {!collapsed && <span className="text-sm font-medium">Sair</span>}
+        </button>
+
+        {/* Collapse Toggle */}
         <button
           onClick={onToggle}
           className="w-full flex items-center justify-center py-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors"

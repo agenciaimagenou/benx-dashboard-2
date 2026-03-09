@@ -3,6 +3,12 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 function parseBrDate(dateStr: string | null | undefined): Date | null {
   if (!dateStr) return null;
+  // ISO format: "2026-01-26T21:27:25" or "2026-01-26"
+  if (dateStr.includes("T") || /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // Brazilian format: "DD/MM/YYYY"
   const parts = dateStr.split("/");
   if (parts.length !== 3) return null;
   const [day, month, year] = parts;
@@ -10,7 +16,10 @@ function parseBrDate(dateStr: string | null | undefined): Date | null {
   return new Date(`${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T00:00:00`);
 }
 
-function parseBrDateTime(dateStr: string | null | undefined, timeStr: string | null | undefined): Date | null {
+function parseBrDateTime(dateStr: string | null | undefined, timeStr?: string | null): Date | null {
+  if (!dateStr) return null;
+  // ISO datetime already includes time — use directly
+  if (dateStr.includes("T")) return new Date(dateStr);
   const d = parseBrDate(dateStr);
   if (!d) return null;
   if (timeStr) {
@@ -142,21 +151,6 @@ export interface AnalyticsResponse {
   };
 }
 
-const SELECT_COLS = [
-  "Id",
-  "Situação",
-  "Nome",
-  "Empreendimento",
-  "Corretor",
-  "Data da Última Interação",
-  "Hora da Última Interação",
-  "Data Primeiro Cadastro",
-  "Dias sem contato",
-  "Motivo de Cancelamento",
-  "Descrição do Motivo de Cancelamento",
-  "Submotivo de Cancelamento",
-  "Lead vencido",
-].map((c) => `"${c}"`).join(", ");
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -169,13 +163,13 @@ export async function GET(request: NextRequest) {
   }
 
   // Fetch all leads with pagination (Supabase default cap is 1000 rows)
-  const SELECT = `Id, "Situação", "Nome", "Empreendimento", "Primeiro Empreendimento", "Corretor", "Imobiliária", "Primeira Origem", "Última Origem", "Data da Última Interação", "Hora da Última Interação", "Data da Última Entrada", "Hora da Última Entrada", "Data Primeiro Cadastro", "Dias sem contato", "Motivo de Cancelamento", "Descrição do Motivo de Cancelamento", "Submotivo de Cancelamento", "Lead vencido"`;
+  const SELECT = `idlead, situacao, nome, empreendimento, empreendimento_primeiro, corretor, imobiliaria, origem, origem_ultimo, data_ultima_interacao, data_ultima_alteracao, data_cad, motivo_cancelamento, descricao_motivo_cancelamento, submotivo_cancelamento, vencido`;
   const PAGE = 1000;
   const allLeads: Record<string, unknown>[] = [];
   let from = 0;
   while (true) {
     const { data: page, error } = await supabaseAdmin
-      .from("Leads")
+      .from("leads2")
       .select(SELECT)
       .range(from, from + PAGE - 1);
     if (error) {
@@ -195,7 +189,7 @@ export async function GET(request: NextRequest) {
 
   // Filter by date of first registration (same filter as CRM route)
   const filtered = (leads || []).filter((lead) => {
-    const d = parseBrDate(lead["Data Primeiro Cadastro"]);
+    const d = parseBrDate(lead["data_cad"] as string);
     if (!d) return false;
     return d >= startDate && d <= endDate;
   });
@@ -209,16 +203,16 @@ export async function GET(request: NextRequest) {
   const leadsParados: StuckLeadEntry[] = [];
 
   for (const lead of filtered) {
-    const sit = lead["Situação"] || "Não definido";
-    // Última atividade: prefere "Última Interação", senão "Última Entrada"
-    const ultimaInteracao = parseBrDateTime(lead["Data da Última Interação"], lead["Hora da Última Interação"]);
-    const ultimaEntrada   = parseBrDateTime(lead["Data da Última Entrada"],   lead["Hora da Última Entrada"]);
+    const sit = lead["situacao"] || "Não definido";
+    // Última atividade: prefere "data_ultima_interacao", senão "data_ultima_alteracao"
+    const ultimaInteracao = parseBrDateTime(lead["data_ultima_interacao"] as string);
+    const ultimaEntrada   = parseBrDateTime(lead["data_ultima_alteracao"] as string);
     const ultimaAlteracao = ultimaInteracao ?? ultimaEntrada;
 
     // dias_sem_contato: nosso cálculo — dias corridos desde a última interação até hoje.
     // Usa cadastro como mínimo, para nunca extrapolar o período filtrado.
-    const cadastroStart = parseBrDate(lead["Data Primeiro Cadastro"] as string);
-    const interacaoStart = parseBrDate(lead["Data da Última Interação"] as string);
+    const cadastroStart = parseBrDate(lead["data_cad"] as string);
+    const interacaoStart = parseBrDate(lead["data_ultima_interacao"] as string);
     const semContatoStart =
       interacaoStart && cadastroStart && interacaoStart > cadastroStart
         ? interacaoStart
@@ -228,7 +222,7 @@ export async function GET(request: NextRequest) {
 
     // diasParado = tempo desde a última atividade até hoje
     // Se nunca houve atividade, conta desde o cadastro
-    const cadastroDT = parseBrDate(lead["Data Primeiro Cadastro"]);
+    const cadastroDT = parseBrDate(lead["data_cad"] as string);
     if (cadastroDT) cadastroDT.setHours(9, 0, 0, 0);
     const startPoint = ultimaAlteracao ?? cadastroDT;
     const horasUteis = startPoint ? workingHoursBetween(startPoint, today) : 0;
@@ -246,17 +240,17 @@ export async function GET(request: NextRequest) {
     // Collect stuck leads (stagnant for at least threshold days, excluding discarded/cancelled)
     if (!isDescartado(sit) && diasSemContato >= stuckThreshold) {
       leadsParados.push({
-        id: lead["Id"],
-        nome: lead["Nome"] || "—",
+        id: lead["idlead"],
+        nome: lead["nome"] || "—",
         situacao: sit,
-        empreendimento: (lead["Primeiro Empreendimento"] || lead["Empreendimento"] || "—") as string,
-        corretor: lead["Corretor"] || "—",
-        imobiliaria: normalizeImobiliaria(lead["Imobiliária"]),
-        origem: normalizeOrigem(lead["Primeira Origem"]),
-        ultima_origem: normalizeOrigem(lead["Última Origem"]),
-        data_cadastro: lead["Data Primeiro Cadastro"] || null,
+        empreendimento: (lead["empreendimento_primeiro"] || lead["empreendimento"] || "—") as string,
+        corretor: lead["corretor"] || "—",
+        imobiliaria: normalizeImobiliaria(lead["imobiliaria"]),
+        origem: normalizeOrigem(lead["origem"]),
+        ultima_origem: normalizeOrigem(lead["origem_ultimo"]),
+        data_cadastro: lead["data_cad"] || null,
         dias_parado: diasParado,
-        ultima_atualizacao: (lead["Data da Última Interação"] as string) || (lead["Data da Última Entrada"] as string) || null,
+        ultima_atualizacao: (lead["data_ultima_interacao"] as string) || (lead["data_ultima_alteracao"] as string) || null,
         dias_sem_contato: diasSemContato,
       });
     }
@@ -270,15 +264,15 @@ export async function GET(request: NextRequest) {
 
   // Build quick lookup map for filtered leads
   const filteredLeadMap = new Map<number, Record<string, unknown>>();
-  for (const l of filtered) filteredLeadMap.set(l["Id"] as number, l);
+  for (const l of filtered) filteredLeadMap.set(l["idlead"] as number, l);
 
-  // Fetch Visitas table with pagination
+  // Fetch Visitas2 table with pagination
   const allVisitas: Record<string, unknown>[] = [];
   let vFrom = 0;
   while (true) {
     const { data: vPage, error: vError } = await supabaseAdmin
-      .from("Visitas")
-      .select(`"Lead", "Situação da visita", "Data de conclusão de visita"`)
+      .from("Visitas2")
+      .select(`idlead, situacao, data_conclusao`)
       .range(vFrom, vFrom + 999);
     if (vError || !vPage || vPage.length === 0) break;
     allVisitas.push(...vPage);
@@ -288,25 +282,25 @@ export async function GET(request: NextRequest) {
 
   // Process visits for leads in our filtered date range
   for (const v of allVisitas) {
-    const leadId = v["Lead"] as number;
+    const leadId = v["idlead"] as number;
     if (!filteredLeadMap.has(leadId)) continue;
     const lead = filteredLeadMap.get(leadId)!;
 
-    const sitVisita = String(v["Situação da visita"] || "").toLowerCase().trim();
+    const sitVisita = String(v["situacao"] || "").toLowerCase().trim();
     let sit: string;
     let startPoint: Date | null = null;
 
     if (sitVisita === "pendente" || sitVisita === "em andamento") {
       sit = "Visita Agendada";
-      const ultimaInteracao = parseBrDateTime(lead["Data da Última Interação"], lead["Hora da Última Interação"]);
-      const ultimaEntrada   = parseBrDateTime(lead["Data da Última Entrada"],   lead["Hora da Última Entrada"]);
+      const ultimaInteracao = parseBrDateTime(lead["data_ultima_interacao"] as string);
+      const ultimaEntrada   = parseBrDateTime(lead["data_ultima_alteracao"] as string);
       const ultimaAlteracao = ultimaInteracao ?? ultimaEntrada;
-      const cadastroDT = parseBrDate(lead["Data Primeiro Cadastro"]);
+      const cadastroDT = parseBrDate(lead["data_cad"] as string);
       if (cadastroDT) cadastroDT.setHours(9, 0, 0, 0);
       startPoint = ultimaAlteracao ?? cadastroDT;
-    } else if (sitVisita === "concluido" || sitVisita === "concluído") {
+    } else if (sitVisita === "concluída" || sitVisita === "concluida") {
       sit = "Visita Realizada";
-      const conclusaoDate = parseBrDate(v["Data de conclusão de visita"] as string);
+      const conclusaoDate = parseBrDate(v["data_conclusao"] as string);
       if (conclusaoDate) conclusaoDate.setHours(9, 0, 0, 0);
       startPoint = conclusaoDate;
     } else {
@@ -369,12 +363,12 @@ export async function GET(request: NextRequest) {
   const descarteMap: Record<string, MotivoDescarte> = {};
 
   for (const lead of filtered) {
-    const motivo = lead["Motivo de Cancelamento"];
+    const motivo = lead["motivo_cancelamento"];
     if (!motivo) continue;
 
-    const descricao = lead["Descrição do Motivo de Cancelamento"] || "";
-    const submotivo = lead["Submotivo de Cancelamento"] || "";
-    const emp = (lead["Primeiro Empreendimento"] || lead["Empreendimento"] || "Não identificado") as string;
+    const descricao = lead["descricao_motivo_cancelamento"] || "";
+    const submotivo = lead["submotivo_cancelamento"] || "";
+    const emp = (lead["empreendimento_primeiro"] || lead["empreendimento"] || "Não identificado") as string;
 
     const key = `${motivo}|${descricao}|${emp}`;
     if (!descarteMap[key]) {
@@ -382,20 +376,27 @@ export async function GET(request: NextRequest) {
     }
     descarteMap[key].count++;
     descarteMap[key].leads.push({
-      id: lead["Id"] as number,
-      nome: (lead["Nome"] || "—") as string,
-      corretor: (lead["Corretor"] || "—") as string,
+      id: lead["idlead"] as number,
+      nome: (lead["nome"] || "—") as string,
+      corretor: (lead["corretor"] || "—") as string,
       empreendimento: emp,
-      data_cadastro: (lead["Data Primeiro Cadastro"] || null) as string | null,
+      data_cadastro: (lead["data_cad"] || null) as string | null,
     });
   }
 
   const motivosDescarte = Object.values(descarteMap).sort((a, b) => b.count - a.count);
 
   // ── 3. Resumo parados ────────────────────────────────────────────────────────
-  const allDiasSemContato = filtered
-    .map((l) => parseInt(l["Dias sem contato"] || "0", 10))
-    .filter((d) => d > 0);
+  const allDiasSemContato = filtered.map((l) => {
+    const cadastroStart = parseBrDate(l["data_cad"] as string);
+    const interacaoStart = parseBrDate(l["data_ultima_interacao"] as string);
+    const semContatoStart =
+      interacaoStart && cadastroStart && interacaoStart > cadastroStart
+        ? interacaoStart
+        : (cadastroStart ?? null);
+    const todayMidnight = new Date(); todayMidnight.setHours(23, 59, 59, 0);
+    return semContatoStart ? daysBetween(semContatoStart, todayMidnight) : 0;
+  }).filter((d) => d > 0);
 
   const avgDiasSemContato =
     allDiasSemContato.length > 0
@@ -403,27 +404,27 @@ export async function GET(request: NextRequest) {
       : 0;
 
   function getWorkingDays(l: Record<string, unknown>): number {
-    const cad = parseBrDate(l["Data Primeiro Cadastro"]);
+    const cad = parseBrDate(l["data_cad"] as string);
     if (cad) cad.setHours(9, 0, 0, 0);
-    const ultimaAlt = parseBrDateTime(l["Data da Última Interação"], l["Hora da Última Interação"])
-                   ?? parseBrDateTime(l["Data da Última Entrada"],   l["Hora da Última Entrada"]);
+    const ultimaAlt = parseBrDateTime(l["data_ultima_interacao"] as string)
+                   ?? parseBrDateTime(l["data_ultima_alteracao"] as string);
     const start = ultimaAlt ?? cad;
     return start ? workingHoursBetween(start, today) / 14 : 0;
   }
 
-  const totalParados3d  = filtered.filter((l) => !isDescartado(l["Situação"]) && getWorkingDays(l) >= 3).length;
-  const totalParados7d  = filtered.filter((l) => !isDescartado(l["Situação"]) && getWorkingDays(l) >= 7).length;
-  const totalParados15d = filtered.filter((l) => !isDescartado(l["Situação"]) && getWorkingDays(l) >= 15).length;
+  const totalParados3d  = filtered.filter((l) => !isDescartado(l["situacao"]) && getWorkingDays(l) >= 3).length;
+  const totalParados7d  = filtered.filter((l) => !isDescartado(l["situacao"]) && getWorkingDays(l) >= 7).length;
+  const totalParados15d = filtered.filter((l) => !isDescartado(l["situacao"]) && getWorkingDays(l) >= 15).length;
 
   // Total de leads por corretor (todos no período, não apenas parados)
   const corretoresTotal: Record<string, number> = {};
   const imobiliariasSet = new Set<string>();
   const ultimasOrigensSet = new Set<string>();
   for (const lead of filtered) {
-    const c = String(lead["Corretor"] || "").split(" - ")[0].trim() || "Não atribuído";
+    const c = String(lead["corretor"] || "").split(" - ")[0].trim() || "Não atribuído";
     corretoresTotal[c] = (corretoresTotal[c] || 0) + 1;
-    imobiliariasSet.add(normalizeImobiliaria(lead["Imobiliária"]));
-    ultimasOrigensSet.add(normalizeOrigem(lead["Última Origem"]));
+    imobiliariasSet.add(normalizeImobiliaria(lead["imobiliaria"]));
+    ultimasOrigensSet.add(normalizeOrigem(lead["origem_ultimo"]));
   }
 
   const response: AnalyticsResponse = {

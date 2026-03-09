@@ -17,6 +17,12 @@ function normalizeOrigem(origem: unknown): string {
 
 function parseBrDate(dateStr: string | null): Date | null {
   if (!dateStr) return null;
+  // ISO format: "2026-01-26T21:27:25" or "2026-01-26"
+  if (dateStr.includes("T") || /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // Brazilian format: "DD/MM/YYYY"
   const parts = dateStr.split("/");
   if (parts.length !== 3) return null;
   return new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`);
@@ -32,13 +38,13 @@ export async function GET(request: NextRequest) {
   }
 
   // Fetch all leads with pagination (Supabase default cap is 1000 rows)
-  const SELECT = `Id, "Situação", "Nome", "Corretor", "Imobiliária", "Data Primeiro Cadastro", "Empreendimento", "Primeiro Empreendimento", "Convertido", "Reserva", "Ganhos", "Perdas", "Primeira Origem", "Última Origem", "Score"`;
+  const SELECT = `idlead, situacao, nome, corretor, imobiliaria, data_cad, empreendimento, empreendimento_primeiro, reserva, origem, origem_ultimo, score`;
   const PAGE = 1000;
   const allLeads: Record<string, unknown>[] = [];
   let from = 0;
   while (true) {
     const { data: page, error } = await supabaseAdmin
-      .from("Leads")
+      .from("leads2")
       .select(SELECT)
       .range(from, from + PAGE - 1);
     if (error) {
@@ -57,7 +63,7 @@ export async function GET(request: NextRequest) {
 
   // Filter by date range
   const filtered = (leads || []).filter((lead) => {
-    const d = parseBrDate(lead["Data Primeiro Cadastro"]);
+    const d = parseBrDate(lead["data_cad"] as string);
     if (!d) return false;
     return d >= startDate && d <= endDate;
   });
@@ -90,7 +96,7 @@ export async function GET(request: NextRequest) {
   const byEmpreendimento: Record<string, EmpEntry> = {};
 
   for (const lead of filtered) {
-    const emp = (lead["Primeiro Empreendimento"] || lead["Empreendimento"] || "Não Identificado") as string;
+    const emp = (lead["empreendimento_primeiro"] || lead["empreendimento"] || "Não Identificado") as string;
 
     if (!byEmpreendimento[emp]) {
       byEmpreendimento[emp] = {
@@ -113,17 +119,17 @@ export async function GET(request: NextRequest) {
     entry.total_leads += 1;
 
     // Track origin frequency
-    const origemLead = normalizeOrigem(lead["Primeira Origem"]);
+    const origemLead = normalizeOrigem(lead["origem"]);
     entry._origemCounts[origemLead] = (entry._origemCounts[origemLead] || 0) + 1;
 
     // Track situation frequency
-    const sitLead = lead["Situação"] || "Não definido";
+    const sitLead = lead["situacao"] || "Não definido";
     entry.por_situacao[sitLead] = (entry.por_situacao[sitLead] || 0) + 1;
 
-    const situacao = (lead["Situação"] || "").toLowerCase();
-    const reserva = lead["Reserva"] === "1" || parseFloat(lead["Reserva"] || "0") > 0;
-    const ganhos = parseFloat(lead["Ganhos"] || "0") > 0;
-    const perdas = parseFloat(lead["Perdas"] || "0") > 0;
+    const situacao = (lead["situacao"] || "").toLowerCase();
+    const reserva = (lead["reserva"] as number || 0) > 0;
+    const ganhos = situacao.includes("ganho") || situacao.includes("venda");
+    const perdas = situacao.includes("perd") || situacao.includes("cancel") || situacao.includes("descart");
 
     if (situacao.includes("atendimento") || situacao.includes("tentativa")) {
       entry.atendimento += 1;
@@ -131,18 +137,18 @@ export async function GET(request: NextRequest) {
     if (reserva || situacao.includes("reserva")) {
       entry.reserva += 1;
     }
-    if (ganhos || situacao.includes("ganho") || situacao.includes("venda")) {
+    if (ganhos) {
       entry.ganhos += 1;
       entry.ganho_leads.push({
-        id: lead["Id"] as number,
-        nome: (lead["Nome"] || "—") as string,
-        corretor: (lead["Corretor"] || "—") as string,
-        data_cadastro: (lead["Data Primeiro Cadastro"] || null) as string | null,
-        origem: normalizeOrigem(lead["Primeira Origem"]),
-        situacao: (lead["Situação"] || "—") as string,
+        id: lead["idlead"] as number,
+        nome: (lead["nome"] || "—") as string,
+        corretor: (lead["corretor"] || "—") as string,
+        data_cadastro: (lead["data_cad"] || null) as string | null,
+        origem: normalizeOrigem(lead["origem"]),
+        situacao: (lead["situacao"] || "—") as string,
       });
     }
-    if (perdas || situacao.includes("perd") || situacao.includes("cancel")) {
+    if (perdas) {
       entry.perdas += 1;
       entry.cancelados += 1;
     }
@@ -179,22 +185,22 @@ export async function GET(request: NextRequest) {
 
   // Aggregate situações for the full funnel
   for (const lead of filtered) {
-    const sit = lead["Situação"] || "Não definido";
+    const sit = lead["situacao"] || "Não definido";
     totals.por_situacao[sit] = (totals.por_situacao[sit] || 0) + 1;
 
-    const origem = normalizeOrigem(lead["Primeira Origem"]);
+    const origem = normalizeOrigem(lead["origem"]);
     totals.por_origem[origem] = (totals.por_origem[origem] || 0) + 1;
 
-    const empTotal = (lead["Primeiro Empreendimento"] || lead["Empreendimento"] || "Não Identificado") as string;
+    const empTotal = (lead["empreendimento_primeiro"] || lead["empreendimento"] || "Não Identificado") as string;
     if (!totals.por_origem_emp[origem]) totals.por_origem_emp[origem] = {};
     totals.por_origem_emp[origem][empTotal] = (totals.por_origem_emp[origem][empTotal] || 0) + 1;
 
-    const ultimaOrigem = normalizeOrigem(lead["Última Origem"]);
+    const ultimaOrigem = normalizeOrigem(lead["origem_ultimo"]);
     totals.por_ultima_origem[ultimaOrigem] = (totals.por_ultima_origem[ultimaOrigem] || 0) + 1;
     if (!totals.por_ultima_origem_emp[ultimaOrigem]) totals.por_ultima_origem_emp[ultimaOrigem] = {};
     totals.por_ultima_origem_emp[ultimaOrigem][empTotal] = (totals.por_ultima_origem_emp[ultimaOrigem][empTotal] || 0) + 1;
 
-    const imob = normalizeImobiliaria(lead["Imobiliária"]);
+    const imob = normalizeImobiliaria(lead["imobiliaria"]);
     if (!totals.por_imobiliaria_emp[imob]) totals.por_imobiliaria_emp[imob] = {};
     totals.por_imobiliaria_emp[imob][empTotal] = (totals.por_imobiliaria_emp[imob][empTotal] || 0) + 1;
 
@@ -205,7 +211,7 @@ export async function GET(request: NextRequest) {
     if (!totals.por_ultima_origem_imobiliaria[ultimaOrigem]) totals.por_ultima_origem_imobiliaria[ultimaOrigem] = {};
     totals.por_ultima_origem_imobiliaria[ultimaOrigem][imob] = (totals.por_ultima_origem_imobiliaria[ultimaOrigem][imob] || 0) + 1;
 
-    const sitTotal = lead["Situação"] || "Não definido";
+    const sitTotal = lead["situacao"] || "Não definido";
     if (!totals.por_imobiliaria_emp_sit[imob]) totals.por_imobiliaria_emp_sit[imob] = {};
     if (!totals.por_imobiliaria_emp_sit[imob][empTotal]) totals.por_imobiliaria_emp_sit[imob][empTotal] = {};
     totals.por_imobiliaria_emp_sit[imob][empTotal][sitTotal] = (totals.por_imobiliaria_emp_sit[imob][empTotal][sitTotal] || 0) + 1;
@@ -214,14 +220,14 @@ export async function GET(request: NextRequest) {
   totals.origens_list = Object.keys(totals.por_origem).sort();
   totals.ultimas_origens_list = Object.keys(totals.por_ultima_origem).sort();
 
-  // ── Override Visita Agendada / Visita Realizada from Visitas table ──────────
-  const filteredLeadIds = new Set(filtered.map((l) => l["Id"] as number));
+  // ── Override Visita Agendada / Visita Realizada from Visitas2 table ─────────
+  const filteredLeadIds = new Set(filtered.map((l) => l["idlead"] as number));
   const allVisitas: Record<string, unknown>[] = [];
   let vFrom = 0;
   while (true) {
     const { data: vPage, error: vError } = await supabaseAdmin
-      .from("Visitas")
-      .select(`"Lead", "Situação da visita", "Empreendimento visita"`)
+      .from("Visitas2")
+      .select("idlead, situacao, nome_empreendimento")
       .range(vFrom, vFrom + 999);
     if (vError || !vPage || vPage.length === 0) break;
     allVisitas.push(...vPage);
@@ -232,12 +238,12 @@ export async function GET(request: NextRequest) {
   const visitasAgendadasByEmp: Record<string, number> = {};
   const visitasRealizadasByEmp: Record<string, number> = {};
   for (const v of allVisitas) {
-    if (!filteredLeadIds.has(v["Lead"] as number)) continue;
-    const emp = (v["Empreendimento visita"] || "Não Identificado") as string;
-    const sit = String(v["Situação da visita"] || "").toLowerCase().trim();
+    if (!filteredLeadIds.has(v["idlead"] as number)) continue;
+    const emp = (v["nome_empreendimento"] || "Não Identificado") as string;
+    const sit = String(v["situacao"] || "").toLowerCase().trim();
     if (sit === "pendente" || sit === "em andamento") {
       visitasAgendadasByEmp[emp] = (visitasAgendadasByEmp[emp] || 0) + 1;
-    } else if (sit === "concluido" || sit === "concluído") {
+    } else if (sit === "concluída" || sit === "concluida") {
       visitasRealizadasByEmp[emp] = (visitasRealizadasByEmp[emp] || 0) + 1;
     }
   }
