@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import pkg from "@/package.json";
+import Image from "next/image";
 import {
   LayoutDashboard,
   TrendingUp,
@@ -9,7 +10,6 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
-  BarChart3,
   LogOut,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
@@ -59,15 +59,11 @@ export default function Sidebar({ active, onChange, collapsed, onToggle, stuckCo
       )}
     >
       {/* Logo */}
-      <div className={cn("flex items-center gap-2.5 px-4 py-5 border-b border-gray-50", collapsed && "justify-center px-0")}>
-        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-violet-600 rounded-xl flex items-center justify-center flex-shrink-0">
-          <BarChart3 className="w-4 h-4 text-white" />
-        </div>
-        {!collapsed && (
-          <div className="overflow-hidden">
-            <p className="text-sm font-bold text-gray-900 leading-tight">Benx</p>
-            <p className="text-[10px] text-gray-400 leading-tight">Meta Ads + CRM</p>
-          </div>
+      <div className={cn("flex items-center gap-2.5 px-4 py-4 border-b border-gray-50", collapsed && "justify-center px-0")}>
+        {collapsed ? (
+          <Image src="/logo-benx.png" alt="Benx" width={32} height={32} className="object-contain flex-shrink-0" />
+        ) : (
+          <Image src="/logo-benx.png" alt="Benx" width={100} height={36} className="object-contain" />
         )}
       </div>
 

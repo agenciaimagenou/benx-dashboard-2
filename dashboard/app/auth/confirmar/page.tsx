@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase-browser";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
@@ -111,12 +112,9 @@ export default function ConfirmarPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-blue-600 mb-4">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path d="M4 6h16M4 10h16M4 14h10M4 18h6" stroke="white" strokeWidth="2" strokeLinecap="round" />
-          </svg>
+        <div className="flex justify-center mb-4">
+          <Image src="/logo-benx.png" alt="Benx" width={110} height={40} className="object-contain" />
         </div>
-        <h1 className="text-xl font-bold text-gray-900 mb-1">Benx</h1>
         <Suspense fallback={
           <div className="mt-6">
             <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-3" />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, Suspense } from "react";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase-browser";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Loader2, CheckCircle2, ShieldCheck, XCircle } from "lucide-react";
@@ -99,13 +100,7 @@ function RedefinirSenhaContent() {
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600 mb-4 shadow-lg shadow-blue-200">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-              <path d="M4 6h16M4 10h16M4 14h10M4 18h6" stroke="white" strokeWidth="2.2" strokeLinecap="round" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Benx</h1>
-          <p className="text-sm text-gray-500 mt-1">Meta Ads + CRM</p>
+          <Image src="/logo-benx.png" alt="Benx" width={140} height={52} className="object-contain" />
         </div>
 
         <div className="bg-white rounded-3xl border border-gray-100 shadow-xl shadow-gray-100/80 overflow-hidden">
