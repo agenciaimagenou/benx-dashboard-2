@@ -244,7 +244,7 @@ export default function CorretoresParadosTable({ data, leads, corretoresTotal, l
       {modal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setModal(null)}>
           <div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col overflow-hidden"
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
             {/* Modal header */}
@@ -279,9 +279,9 @@ export default function CorretoresParadosTable({ data, leads, corretoresTotal, l
                   {modal.leads.map(l => (
                     <tr key={l.id} className="hover:bg-gray-50/50">
                       <td className="px-4 py-3 text-xs text-gray-400 font-mono whitespace-nowrap">{l.id}</td>
-                      <td className="px-4 py-3 font-medium text-gray-800 max-w-[180px] truncate">{l.nome}</td>
-                      <td className="px-4 py-3 text-xs text-gray-600 max-w-[160px] truncate">{l.empreendimento}</td>
-                      <td className="px-4 py-3 text-xs text-gray-500 max-w-[120px] truncate">{l.origem || "—"}</td>
+                      <td className="px-4 py-3 font-medium text-gray-800 max-w-[220px] truncate">{l.nome}</td>
+                      <td className="px-4 py-3 text-xs text-gray-600 max-w-[200px] truncate">{l.empreendimento}</td>
+                      <td className="px-4 py-3 text-xs text-gray-500 max-w-[160px] truncate">{l.origem || "—"}</td>
                       <td className="px-4 py-3 text-right text-xs text-gray-500 whitespace-nowrap">{l.data_cadastro ?? "—"}</td>
                       <td className="px-4 py-3 text-right text-xs text-gray-500 whitespace-nowrap">{l.ultima_atualizacao ?? "—"}</td>
                       <td className={cn("px-4 py-3 text-right text-xs whitespace-nowrap", diasColor(l.dias_parado))}>{l.dias_parado}d</td>
