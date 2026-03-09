@@ -1,0 +1,13 @@
+{
+  "name": "benx-dashboard-root",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "next": "16.1.6"
+  },
+  "scripts": {
+    "build": "cd dashboard && npm run build",
+    "dev": "cd dashboard && npm run dev",
+    "start": "cd dashboard && npm start"
+  }
+}
