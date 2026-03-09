@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { createClient } from "@/lib/supabase-browser";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Loader2, CheckCircle2 } from "lucide-react";
 
 type Mode = "login" | "signup" | "forgot";
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -293,5 +293,17 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }
