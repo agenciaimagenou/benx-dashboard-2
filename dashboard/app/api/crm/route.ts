@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Fetch all leads with pagination (Supabase default cap is 1000 rows)
-  const SELECT = `idlead, situacao, nome, corretor, imobiliaria, data_cad, empreendimento, empreendimento_primeiro, reserva, origem_nome, origem_ultimo, score`;
+  const SELECT = `idlead, situacao, nome, corretor, imobiliaria, data_cad, empreendimento, empreendimento_primeiro, reserva, origem_nome, origem_ultimo, score, novo, retorno`;
   const PAGE = 1000;
   const allLeads: Record<string, unknown>[] = [];
   let from = 0;
@@ -90,6 +90,8 @@ export async function GET(request: NextRequest) {
     por_situacao: Record<string, number>;
     _origemCounts: Record<string, number>;
     ganho_leads: LeadGanhoEntry[];
+    novo_count: number;
+    retorno_count: number;
   }
 
   // Group by empreendimento
@@ -112,6 +114,8 @@ export async function GET(request: NextRequest) {
         por_situacao: {},
         _origemCounts: {},
         ganho_leads: [],
+        novo_count: 0,
+        retorno_count: 0,
       };
     }
 
@@ -130,6 +134,13 @@ export async function GET(request: NextRequest) {
     const reserva = (lead["reserva"] as number || 0) > 0;
     const ganhos = situacao.includes("ganho") || situacao.includes("venda");
     const perdas = situacao.includes("perd") || situacao.includes("cancel") || situacao.includes("descart");
+
+    // Count novo and retorno (handles boolean, 1/0, 'S'/'N', 'true'/'false', 'sim'/'nao')
+    const novoVal = lead["novo"];
+    const retornoVal = lead["retorno"];
+    const isTruthy = (v: unknown) => v === true || v === 1 || v === "S" || v === "s" || v === "true" || v === "sim";
+    if (isTruthy(novoVal)) entry.novo_count += 1;
+    if (isTruthy(retornoVal)) entry.retorno_count += 1;
 
     if (situacao.includes("atendimento") || situacao.includes("tentativa")) {
       entry.atendimento += 1;
@@ -178,9 +189,13 @@ export async function GET(request: NextRequest) {
     por_ultima_origem_imobiliaria: {} as Record<string, Record<string, number>>,
     por_imobiliaria_emp: {} as Record<string, Record<string, number>>,
     por_imobiliaria_emp_sit: {} as Record<string, Record<string, Record<string, number>>>,
+    por_imobiliaria_emp_novo: {} as Record<string, Record<string, number>>,
+    por_imobiliaria_emp_retorno: {} as Record<string, Record<string, number>>,
     por_empreendimento: result,
     origens_list: [] as string[],
     ultimas_origens_list: [] as string[],
+    total_novo: 0,
+    total_retorno: 0,
   };
 
   // Aggregate situações for the full funnel
@@ -215,6 +230,19 @@ export async function GET(request: NextRequest) {
     if (!totals.por_imobiliaria_emp_sit[imob]) totals.por_imobiliaria_emp_sit[imob] = {};
     if (!totals.por_imobiliaria_emp_sit[imob][empTotal]) totals.por_imobiliaria_emp_sit[imob][empTotal] = {};
     totals.por_imobiliaria_emp_sit[imob][empTotal][sitTotal] = (totals.por_imobiliaria_emp_sit[imob][empTotal][sitTotal] || 0) + 1;
+
+    // Track novo / retorno by imobiliária × empreendimento
+    const isTruthyTotal = (v: unknown) => v === true || v === 1 || v === "S" || v === "s" || v === "true" || v === "sim";
+    if (isTruthyTotal(lead["novo"])) {
+      if (!totals.por_imobiliaria_emp_novo[imob]) totals.por_imobiliaria_emp_novo[imob] = {};
+      totals.por_imobiliaria_emp_novo[imob][empTotal] = (totals.por_imobiliaria_emp_novo[imob][empTotal] || 0) + 1;
+      totals.total_novo += 1;
+    }
+    if (isTruthyTotal(lead["retorno"])) {
+      if (!totals.por_imobiliaria_emp_retorno[imob]) totals.por_imobiliaria_emp_retorno[imob] = {};
+      totals.por_imobiliaria_emp_retorno[imob][empTotal] = (totals.por_imobiliaria_emp_retorno[imob][empTotal] || 0) + 1;
+      totals.total_retorno += 1;
+    }
   }
 
   totals.origens_list = Object.keys(totals.por_origem).sort();

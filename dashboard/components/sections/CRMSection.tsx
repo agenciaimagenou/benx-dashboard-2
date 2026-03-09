@@ -30,6 +30,8 @@ interface CRMEmp {
   primary_origem: string;
   por_situacao: Record<string, number>;
   ganho_leads: LeadGanho[];
+  novo_count: number;
+  retorno_count: number;
 }
 
 interface CRMResponse {
@@ -42,9 +44,13 @@ interface CRMResponse {
   por_ultima_origem_imobiliaria: Record<string, Record<string, number>>;
   por_imobiliaria_emp: Record<string, Record<string, number>>;
   por_imobiliaria_emp_sit: Record<string, Record<string, Record<string, number>>>;
+  por_imobiliaria_emp_novo: Record<string, Record<string, number>>;
+  por_imobiliaria_emp_retorno: Record<string, Record<string, number>>;
   por_empreendimento: CRMEmp[];
   origens_list: string[];
   ultimas_origens_list: string[];
+  total_novo: number;
+  total_retorno: number;
 }
 
 interface Props {
@@ -132,6 +138,14 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
       }
     }
     return merged;
+  }
+  function empImobNovo(empName: string): number {
+    if (!filterImobiliaria.length) return 0;
+    return filterImobiliaria.reduce((sum, imob) => sum + (crmData?.por_imobiliaria_emp_novo?.[imob]?.[empName] ?? 0), 0);
+  }
+  function empImobRetorno(empName: string): number {
+    if (!filterImobiliaria.length) return 0;
+    return filterImobiliaria.reduce((sum, imob) => sum + (crmData?.por_imobiliaria_emp_retorno?.[imob]?.[empName] ?? 0), 0);
   }
 
   // Total CRM: handles all filter combinations using exact intersection data
@@ -386,6 +400,12 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
                         {sit}
                       </th>
                     ))}
+                    <th className="px-3 py-3 text-right text-xs font-semibold text-sky-600 uppercase tracking-wide whitespace-nowrap bg-sky-50">
+                      Novo
+                    </th>
+                    <th className="px-3 py-3 text-right text-xs font-semibold text-violet-600 uppercase tracking-wide whitespace-nowrap bg-violet-50">
+                      Retorno
+                    </th>
                     <th
                       onClick={() => toggleFunnelSort("conversao")}
                       className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap bg-gray-50 cursor-pointer select-none hover:bg-gray-100 transition-colors"
@@ -451,6 +471,32 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
                           </td>
                         );
                       })}
+                      <td className="px-3 py-3 text-right bg-sky-50/40">
+                        {(() => {
+                          const cnt = filterImobiliaria.length ? empImobNovo(emp.empreendimento) : (emp.novo_count ?? 0);
+                          const effTotal = filterImobiliaria.length ? empImobTotal(emp.empreendimento) : emp.total_leads;
+                          const pct = effTotal > 0 ? ((cnt / effTotal) * 100).toFixed(1) : "0.0";
+                          return cnt > 0 ? (
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span className="font-medium text-sky-700">{cnt}</span>
+                              <span className="text-gray-400 text-xs">{pct}%</span>
+                            </div>
+                          ) : <span className="text-gray-200">—</span>;
+                        })()}
+                      </td>
+                      <td className="px-3 py-3 text-right bg-violet-50/40">
+                        {(() => {
+                          const cnt = filterImobiliaria.length ? empImobRetorno(emp.empreendimento) : (emp.retorno_count ?? 0);
+                          const effTotal = filterImobiliaria.length ? empImobTotal(emp.empreendimento) : emp.total_leads;
+                          const pct = effTotal > 0 ? ((cnt / effTotal) * 100).toFixed(1) : "0.0";
+                          return cnt > 0 ? (
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span className="font-medium text-violet-700">{cnt}</span>
+                              <span className="text-gray-400 text-xs">{pct}%</span>
+                            </div>
+                          ) : <span className="text-gray-200">—</span>;
+                        })()}
+                      </td>
                       <td className="px-4 py-3 text-right">
                         {(() => {
                           const effTotal = filterImobiliaria.length ? empImobTotal(emp.empreendimento) : emp.total_leads;
@@ -474,7 +520,7 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
                   ))}
                   {empreendimentos.length === 0 && (
                     <tr>
-                      <td colSpan={sitCols.length + 3} className="px-4 py-8 text-center text-sm text-gray-400">
+                      <td colSpan={sitCols.length + 5} className="px-4 py-8 text-center text-sm text-gray-400">
                         Nenhum empreendimento com esses filtros
                       </td>
                     </tr>
@@ -498,6 +544,34 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
                         </td>
                       );
                     })}
+                    <td className="px-3 py-3 text-right text-xs font-bold text-sky-700 bg-sky-100/60">
+                      {(() => {
+                        const cnt = filterImobiliaria.length
+                          ? empreendimentos.reduce((s, e) => s + empImobNovo(e.empreendimento), 0)
+                          : empreendimentos.reduce((s, e) => s + (e.novo_count ?? 0), 0);
+                        const pct = totalCrmLeads > 0 ? ((cnt / totalCrmLeads) * 100).toFixed(1) : "0.0";
+                        return (
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span>{formatNumber(cnt)}</span>
+                            <span className="text-gray-400 font-normal">{pct}%</span>
+                          </div>
+                        );
+                      })()}
+                    </td>
+                    <td className="px-3 py-3 text-right text-xs font-bold text-violet-700 bg-violet-100/60">
+                      {(() => {
+                        const cnt = filterImobiliaria.length
+                          ? empreendimentos.reduce((s, e) => s + empImobRetorno(e.empreendimento), 0)
+                          : empreendimentos.reduce((s, e) => s + (e.retorno_count ?? 0), 0);
+                        const pct = totalCrmLeads > 0 ? ((cnt / totalCrmLeads) * 100).toFixed(1) : "0.0";
+                        return (
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span>{formatNumber(cnt)}</span>
+                            <span className="text-gray-400 font-normal">{pct}%</span>
+                          </div>
+                        );
+                      })()}
+                    </td>
                     <td className="px-4 py-3 text-right text-xs font-bold text-emerald-600">
                       {totalCrmLeads > 0 ? ((totalGanhos / totalCrmLeads) * 100).toFixed(1) : "0.0"}%
                     </td>
