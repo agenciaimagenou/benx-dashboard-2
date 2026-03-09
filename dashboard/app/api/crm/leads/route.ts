@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "empreendimento, date_start e date_end são obrigatórios" }, { status: 400 });
   }
 
-  const SELECT = `idlead, situacao, nome, corretor, empreendimento, empreendimento_primeiro, origem, data_cad, reserva, score`;
+  const SELECT = `idlead, situacao, nome, corretor, empreendimento, empreendimento_primeiro, origem_nome, data_cad, reserva, score`;
   const PAGE = 1000;
   const allLeads: Record<string, unknown>[] = [];
   let from = 0;
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
     situacao:       (l["situacao"] as string) || "—",
     corretor:       ((l["corretor"] as string) || "—").split(" - ")[0],
     empreendimento: (l["empreendimento_primeiro"] || l["empreendimento"]) as string,
-    origem:         (l["origem"] as string) || "—",
+    origem:         (l["origem_nome"] as string) || "—",
     data_cadastro:  (l["data_cad"] as string) || "—",
     score:          l["score"] ?? 0,
   }));

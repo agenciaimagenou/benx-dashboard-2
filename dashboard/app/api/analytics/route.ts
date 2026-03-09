@@ -163,7 +163,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Fetch all leads with pagination (Supabase default cap is 1000 rows)
-  const SELECT = `idlead, situacao, nome, empreendimento, empreendimento_primeiro, corretor, imobiliaria, origem, origem_ultimo, data_ultima_interacao, data_ultima_alteracao, data_cad, motivo_cancelamento, descricao_motivo_cancelamento, submotivo_cancelamento, vencido`;
+  const SELECT = `idlead, situacao, nome, empreendimento, empreendimento_primeiro, corretor, imobiliaria, origem_nome, origem_ultimo, data_ultima_interacao, data_ultima_alteracao, data_cad, motivo_cancelamento, descricao_motivo_cancelamento, submotivo_cancelamento, vencido`;
   const PAGE = 1000;
   const allLeads: Record<string, unknown>[] = [];
   let from = 0;
@@ -246,7 +246,7 @@ export async function GET(request: NextRequest) {
         empreendimento: (lead["empreendimento_primeiro"] || lead["empreendimento"] || "—") as string,
         corretor: lead["corretor"] || "—",
         imobiliaria: normalizeImobiliaria(lead["imobiliaria"]),
-        origem: normalizeOrigem(lead["origem"]),
+        origem: normalizeOrigem(lead["origem_nome"]),
         ultima_origem: normalizeOrigem(lead["origem_ultimo"]),
         data_cadastro: lead["data_cad"] || null,
         dias_parado: diasParado,

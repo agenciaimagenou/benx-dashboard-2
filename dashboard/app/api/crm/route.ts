@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Fetch all leads with pagination (Supabase default cap is 1000 rows)
-  const SELECT = `idlead, situacao, nome, corretor, imobiliaria, data_cad, empreendimento, empreendimento_primeiro, reserva, origem, origem_ultimo, score`;
+  const SELECT = `idlead, situacao, nome, corretor, imobiliaria, data_cad, empreendimento, empreendimento_primeiro, reserva, origem_nome, origem_ultimo, score`;
   const PAGE = 1000;
   const allLeads: Record<string, unknown>[] = [];
   let from = 0;
@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
     entry.total_leads += 1;
 
     // Track origin frequency
-    const origemLead = normalizeOrigem(lead["origem"]);
+    const origemLead = normalizeOrigem(lead["origem_nome"]);
     entry._origemCounts[origemLead] = (entry._origemCounts[origemLead] || 0) + 1;
 
     // Track situation frequency
@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
         nome: (lead["nome"] || "—") as string,
         corretor: (lead["corretor"] || "—") as string,
         data_cadastro: (lead["data_cad"] || null) as string | null,
-        origem: normalizeOrigem(lead["origem"]),
+        origem: normalizeOrigem(lead["origem_nome"]),
         situacao: (lead["situacao"] || "—") as string,
       });
     }
@@ -188,7 +188,7 @@ export async function GET(request: NextRequest) {
     const sit = lead["situacao"] || "Não definido";
     totals.por_situacao[sit] = (totals.por_situacao[sit] || 0) + 1;
 
-    const origem = normalizeOrigem(lead["origem"]);
+    const origem = normalizeOrigem(lead["origem_nome"]);
     totals.por_origem[origem] = (totals.por_origem[origem] || 0) + 1;
 
     const empTotal = (lead["empreendimento_primeiro"] || lead["empreendimento"] || "Não Identificado") as string;
