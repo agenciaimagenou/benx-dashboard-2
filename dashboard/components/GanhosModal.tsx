@@ -113,7 +113,7 @@ export default function GanhosModal({ empreendimento, dateStart, dateEnd, tipo, 
                     </td>
                     <td className="px-4 py-2.5 text-gray-600 max-w-[140px] truncate">{lead.corretor}</td>
                     <td className="px-4 py-2.5 text-gray-500 text-xs max-w-[120px] truncate">{lead.origem}</td>
-                    <td className="px-4 py-2.5 text-right text-gray-500 text-xs whitespace-nowrap">{lead.data_cadastro}</td>
+                    <td className="px-4 py-2.5 text-right text-gray-500 text-xs whitespace-nowrap">{lead.data_cadastro ? lead.data_cadastro.slice(0, 10).split("-").reverse().join("/") : "—"}</td>
                   </tr>
                 ))}
               </tbody>
