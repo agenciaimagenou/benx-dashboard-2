@@ -27,9 +27,20 @@ interface CRMResponse {
   por_origem_imobiliaria: Record<string, Record<string, number>>;
   por_ultima_origem_emp: Record<string, Record<string, number>>;
   por_ultima_origem_imobiliaria: Record<string, Record<string, number>>;
+  por_ultima_origem_emp_sit: Record<string, Record<string, Record<string, number>>>;
+  por_ultima_origem_emp_novo: Record<string, Record<string, number>>;
+  por_ultima_origem_emp_retorno: Record<string, Record<string, number>>;
   por_imobiliaria_emp: Record<string, Record<string, number>>;
   por_imobiliaria_emp_sit: Record<string, Record<string, Record<string, number>>>;
+  por_origem_emp_sit: Record<string, Record<string, Record<string, number>>>;
+  por_imobiliaria_emp_novo: Record<string, Record<string, number>>;
+  por_imobiliaria_emp_retorno: Record<string, Record<string, number>>;
+  por_origem_emp_novo: Record<string, Record<string, number>>;
+  por_origem_emp_retorno: Record<string, Record<string, number>>;
+  origens_list: string[];
   ultimas_origens_list: string[];
+  total_novo: number;
+  total_retorno: number;
   por_empreendimento: Array<{
     empreendimento: string;
     total_leads: number;
@@ -39,6 +50,11 @@ interface CRMResponse {
     perdas: number;
     cancelados: number;
     conversao_rate: number;
+    primary_origem: string;
+    por_situacao: Record<string, number>;
+    ganho_leads: Array<{ id: number; nome: string; corretor: string; data_cadastro: string | null; origem: string; situacao: string }>;
+    novo_count: number;
+    retorno_count: number;
   }>;
 }
 
@@ -172,6 +188,7 @@ export default function Dashboard() {
       meta_cpl:         meta.cost_per_lead,
       meta_ctr:         meta.avg_ctr,
       meta_cpc:         meta.avg_cpc,
+      meta_cpm:         meta.avg_cpm,
       crm_leads:        crm?.total_leads    ?? 0,
       crm_atendimento:  crm?.atendimento    ?? 0,
       crm_reserva:      crm?.reserva        ?? 0,

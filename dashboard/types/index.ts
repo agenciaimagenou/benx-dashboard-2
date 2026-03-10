@@ -77,6 +77,7 @@ export interface MergedData {
   meta_cpl: number;
   meta_ctr: number;
   meta_cpc: number;
+  meta_cpm: number;
   // CRM
   crm_leads: number;
   crm_atendimento: number;

@@ -17,6 +17,7 @@ export const META_ACCOUNTS = [
   { id: "25449126068050569",name: "LISBO PINHEIROS",              crmKey: "Lisbô Pinheiros" },
   { id: "1271858717733098", name: "BENX | AUTÓR JARDINS",         crmKey: "Autór Jardins" },
   { id: "1758012681457712", name: "BENX | LED VILA MADALENA",     crmKey: "Led Vila Madalena" },
+  { id: "579479128231753",  name: "VIVA BENX | ESTAÇÃO VILA MARIANA", crmKey: "Viva Benx Estação Vila Mariana" },
 ];
 
 export const META_FIELDS = [

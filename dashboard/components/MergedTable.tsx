@@ -29,6 +29,7 @@ const COLUMNS = [
   { key: "meta_ctr" as SortKey, label: "CTR", className: "text-right" },
   { key: "meta_leads" as SortKey, label: "Leads Meta", className: "text-right" },
   { key: "meta_cpl" as SortKey, label: "CPL Meta", className: "text-right" },
+  { key: "meta_cpm" as SortKey, label: "CPM", className: "text-right" },
   { key: "crm_leads" as SortKey, label: "Leads CRM", className: "text-right" },
   { key: "crm_atendimento" as SortKey, label: "Atendimento", className: "text-right" },
   { key: "crm_reserva" as SortKey, label: "Reserva", className: "text-right" },
@@ -77,7 +78,7 @@ export default function MergedTable({ data, loading, dateStart = "", dateEnd = "
     if (key === "empreendimento" || key === "ad_account_name" || key === "crm_key") {
       return <span className="font-medium text-gray-800">{String(value)}</span>;
     }
-    if (key === "meta_spend" || key === "meta_cpl") {
+    if (key === "meta_spend" || key === "meta_cpl" || key === "meta_cpm") {
       return formatCurrency(Number(value));
     }
     if (key === "meta_ctr" || key === "crm_conversao" || key === "lead_conversion") {
@@ -176,7 +177,7 @@ export default function MergedTable({ data, loading, dateStart = "", dateEnd = "
               {COLUMNS.slice(1).map((col) => {
                 const total = data.reduce((sum, r) => sum + (typeof r[col.key] === "number" ? Number(r[col.key]) : 0), 0);
                 const avg = data.length > 0 ? total / data.length : 0;
-                const useAvg = col.key === "meta_ctr" || col.key === "meta_cpl" || col.key === "meta_cpc";
+                const useAvg = col.key === "meta_ctr" || col.key === "meta_cpl" || col.key === "meta_cpc" || col.key === "meta_cpm";
                 return (
                   <td key={col.key} className={cn("px-4 py-3 text-gray-800", col.className)}>
                     {formatCell(col.key, useAvg ? avg : total)}
