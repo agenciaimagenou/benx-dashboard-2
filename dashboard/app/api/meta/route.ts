@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
           level: "campaign",          // campaign level like n8n — ensures actions array is populated
           time_range: timeRange,
           fields: META_FIELDS.join(","),
+          action_attribution_windows: JSON.stringify(["1d_click", "1d_view"]),
           filtering: JSON.stringify([
             { field: "campaign.effective_status", operator: "IN", value: ["ACTIVE", "PAUSED"] },
           ]),
