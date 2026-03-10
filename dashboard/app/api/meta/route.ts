@@ -55,10 +55,9 @@ export async function GET(request: NextRequest) {
     META_ACCOUNTS.map(async (account) => {
       try {
         const params = new URLSearchParams({
-          // account level = same aggregation as Ads Manager account view
+          level: "campaign",
           time_range: timeRange,
-          fields: META_FIELDS.filter(f => f !== "campaign_name").join(","),
-          use_account_attribution_setting: "true",
+          fields: META_FIELDS.join(","),
           limit: "500",
           access_token: ACCESS_TOKEN,
         });
