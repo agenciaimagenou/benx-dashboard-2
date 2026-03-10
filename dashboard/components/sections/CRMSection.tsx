@@ -44,8 +44,11 @@ interface CRMResponse {
   por_ultima_origem_imobiliaria: Record<string, Record<string, number>>;
   por_imobiliaria_emp: Record<string, Record<string, number>>;
   por_imobiliaria_emp_sit: Record<string, Record<string, Record<string, number>>>;
+  por_origem_emp_sit: Record<string, Record<string, Record<string, number>>>;
   por_imobiliaria_emp_novo: Record<string, Record<string, number>>;
   por_imobiliaria_emp_retorno: Record<string, Record<string, number>>;
+  por_origem_emp_novo: Record<string, Record<string, number>>;
+  por_origem_emp_retorno: Record<string, Record<string, number>>;
   por_empreendimento: CRMEmp[];
   origens_list: string[];
   ultimas_origens_list: string[];
@@ -147,6 +150,25 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
     if (!filterImobiliaria.length) return 0;
     return filterImobiliaria.reduce((sum, imob) => sum + (crmData?.por_imobiliaria_emp_retorno?.[imob]?.[empName] ?? 0), 0);
   }
+  function empOrigemSit(empName: string): Record<string, number> {
+    if (!filterOrigens.length) return {};
+    const merged: Record<string, number> = {};
+    for (const o of filterOrigens) {
+      const sitMap = crmData?.por_origem_emp_sit?.[o]?.[empName] ?? {};
+      for (const [sit, cnt] of Object.entries(sitMap)) {
+        merged[sit] = (merged[sit] || 0) + cnt;
+      }
+    }
+    return merged;
+  }
+  function empOrigemNovo(empName: string): number {
+    if (!filterOrigens.length) return 0;
+    return filterOrigens.reduce((sum, o) => sum + (crmData?.por_origem_emp_novo?.[o]?.[empName] ?? 0), 0);
+  }
+  function empOrigemRetorno(empName: string): number {
+    if (!filterOrigens.length) return 0;
+    return filterOrigens.reduce((sum, o) => sum + (crmData?.por_origem_emp_retorno?.[o]?.[empName] ?? 0), 0);
+  }
 
   // Total CRM: handles all filter combinations using exact intersection data
   const totalCrmLeads = (() => {
@@ -199,16 +221,26 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
     return empreendimentos.reduce((s, e) => s + e.total_leads, 0);
   })();
 
-  // When imobiliária filter active, derive ganhos/reservas from situation counts
+  // When imobiliária or origem filter active, derive ganhos/reservas from filtered situation counts
   const totalGanhos = filterImobiliaria.length
     ? empreendimentos.reduce((s, e) => {
         const sit = empImobSit(e.empreendimento);
+        return s + Object.entries(sit).filter(([k]) => isVendaSit(k)).reduce((a, [, v]) => a + v, 0);
+      }, 0)
+    : filterOrigens.length
+    ? empreendimentos.reduce((s, e) => {
+        const sit = empOrigemSit(e.empreendimento);
         return s + Object.entries(sit).filter(([k]) => isVendaSit(k)).reduce((a, [, v]) => a + v, 0);
       }, 0)
     : empreendimentos.reduce((s, e) => s + e.ganhos, 0);
   const totalReservas = filterImobiliaria.length
     ? empreendimentos.reduce((s, e) => {
         const sit = empImobSit(e.empreendimento);
+        return s + (sit["Com Reserva"] ?? 0);
+      }, 0)
+    : filterOrigens.length
+    ? empreendimentos.reduce((s, e) => {
+        const sit = empOrigemSit(e.empreendimento);
         return s + (sit["Com Reserva"] ?? 0);
       }, 0)
     : empreendimentos.reduce((s, e) => s + e.reserva, 0);
@@ -304,7 +336,7 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
           if (!accountCrmKeys && filterOrigens.length === 0 && !filterImobiliaria.length) return crmData?.por_situacao ?? {};
           const merged: Record<string, number> = {};
           empreendimentos.forEach(emp => {
-            const sitMap = filterImobiliaria.length ? empImobSit(emp.empreendimento) : (emp.por_situacao ?? {});
+            const sitMap = filterImobiliaria.length ? empImobSit(emp.empreendimento) : filterOrigens.length ? empOrigemSit(emp.empreendimento) : (emp.por_situacao ?? {});
             Object.entries(sitMap).forEach(([sit, cnt]) => {
               merged[sit] = (merged[sit] ?? 0) + cnt;
             });
@@ -334,7 +366,7 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
         ) : (() => {
           const sitTotals: Record<string, number> = {};
           empreendimentos.forEach(emp => {
-            const sitMap = filterImobiliaria.length ? empImobSit(emp.empreendimento) : (emp.por_situacao ?? {});
+            const sitMap = filterImobiliaria.length ? empImobSit(emp.empreendimento) : filterOrigens.length ? empOrigemSit(emp.empreendimento) : (emp.por_situacao ?? {});
             Object.entries(sitMap).forEach(([sit, cnt]) => {
               sitTotals[sit] = (sitTotals[sit] || 0) + cnt;
             });
@@ -434,8 +466,8 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
                       </td>
                       <td className="px-3 py-3 text-right bg-sky-50/40">
                         {(() => {
-                          const cnt = filterImobiliaria.length ? empImobNovo(emp.empreendimento) : (emp.novo_count ?? 0);
-                          const effTotal = filterImobiliaria.length ? empImobTotal(emp.empreendimento) : emp.total_leads;
+                          const cnt = filterImobiliaria.length ? empImobNovo(emp.empreendimento) : filterOrigens.length ? empOrigemNovo(emp.empreendimento) : (emp.novo_count ?? 0);
+                          const effTotal = filterImobiliaria.length ? empImobTotal(emp.empreendimento) : filterOrigens.length ? filterOrigens.reduce((s, o) => s + (crmData?.por_origem_emp?.[o]?.[emp.empreendimento] ?? 0), 0) : emp.total_leads;
                           const pct = effTotal > 0 ? ((cnt / effTotal) * 100).toFixed(1) : "0.0";
                           return cnt > 0 ? (
                             <div className="flex flex-col items-end gap-0.5">
@@ -447,8 +479,8 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
                       </td>
                       <td className="px-3 py-3 text-right bg-violet-50/40">
                         {(() => {
-                          const cnt = filterImobiliaria.length ? empImobRetorno(emp.empreendimento) : (emp.retorno_count ?? 0);
-                          const effTotal = filterImobiliaria.length ? empImobTotal(emp.empreendimento) : emp.total_leads;
+                          const cnt = filterImobiliaria.length ? empImobRetorno(emp.empreendimento) : filterOrigens.length ? empOrigemRetorno(emp.empreendimento) : (emp.retorno_count ?? 0);
+                          const effTotal = filterImobiliaria.length ? empImobTotal(emp.empreendimento) : filterOrigens.length ? filterOrigens.reduce((s, o) => s + (crmData?.por_origem_emp?.[o]?.[emp.empreendimento] ?? 0), 0) : emp.total_leads;
                           const pct = effTotal > 0 ? ((cnt / effTotal) * 100).toFixed(1) : "0.0";
                           return cnt > 0 ? (
                             <div className="flex flex-col items-end gap-0.5">
@@ -459,8 +491,8 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
                         })()}
                       </td>
                       {sitCols.map(sit => {
-                        const effSit = filterImobiliaria.length ? empImobSit(emp.empreendimento) : (emp.por_situacao ?? {});
-                        const effTotal = filterImobiliaria.length ? empImobTotal(emp.empreendimento) : emp.total_leads;
+                        const effSit = filterImobiliaria.length ? empImobSit(emp.empreendimento) : filterOrigens.length ? empOrigemSit(emp.empreendimento) : (emp.por_situacao ?? {});
+                        const effTotal = filterImobiliaria.length ? empImobTotal(emp.empreendimento) : filterOrigens.length ? filterOrigens.reduce((s, o) => s + (crmData?.por_origem_emp?.[o]?.[emp.empreendimento] ?? 0), 0) : emp.total_leads;
                         const cnt = effSit[sit] ?? 0;
                         const pct = effTotal > 0 ? ((cnt / effTotal) * 100).toFixed(1) : "0.0";
                         const venda = isVendaSit(sit);
@@ -499,9 +531,11 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
                       })}
                       <td className="px-4 py-3 text-right">
                         {(() => {
-                          const effTotal = filterImobiliaria.length ? empImobTotal(emp.empreendimento) : emp.total_leads;
+                          const effTotal = filterImobiliaria.length ? empImobTotal(emp.empreendimento) : filterOrigens.length ? filterOrigens.reduce((s, o) => s + (crmData?.por_origem_emp?.[o]?.[emp.empreendimento] ?? 0), 0) : emp.total_leads;
                           const effGanhos = filterImobiliaria.length
                             ? Object.entries(empImobSit(emp.empreendimento)).filter(([k]) => isVendaSit(k)).reduce((a, [, v]) => a + v, 0)
+                            : filterOrigens.length
+                            ? Object.entries(empOrigemSit(emp.empreendimento)).filter(([k]) => isVendaSit(k)).reduce((a, [, v]) => a + v, 0)
                             : emp.ganhos;
                           const rate = effTotal > 0 ? (effGanhos / effTotal) * 100 : 0;
                           return (
@@ -536,6 +570,8 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
                       {(() => {
                         const cnt = filterImobiliaria.length
                           ? empreendimentos.reduce((s, e) => s + empImobNovo(e.empreendimento), 0)
+                          : filterOrigens.length
+                          ? empreendimentos.reduce((s, e) => s + empOrigemNovo(e.empreendimento), 0)
                           : empreendimentos.reduce((s, e) => s + (e.novo_count ?? 0), 0);
                         const pct = totalCrmLeads > 0 ? ((cnt / totalCrmLeads) * 100).toFixed(1) : "0.0";
                         return (
@@ -550,6 +586,8 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
                       {(() => {
                         const cnt = filterImobiliaria.length
                           ? empreendimentos.reduce((s, e) => s + empImobRetorno(e.empreendimento), 0)
+                          : filterOrigens.length
+                          ? empreendimentos.reduce((s, e) => s + empOrigemRetorno(e.empreendimento), 0)
                           : empreendimentos.reduce((s, e) => s + (e.retorno_count ?? 0), 0);
                         const pct = totalCrmLeads > 0 ? ((cnt / totalCrmLeads) * 100).toFixed(1) : "0.0";
                         return (

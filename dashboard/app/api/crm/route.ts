@@ -189,8 +189,11 @@ export async function GET(request: NextRequest) {
     por_ultima_origem_imobiliaria: {} as Record<string, Record<string, number>>,
     por_imobiliaria_emp: {} as Record<string, Record<string, number>>,
     por_imobiliaria_emp_sit: {} as Record<string, Record<string, Record<string, number>>>,
+    por_origem_emp_sit: {} as Record<string, Record<string, Record<string, number>>>,
     por_imobiliaria_emp_novo: {} as Record<string, Record<string, number>>,
     por_imobiliaria_emp_retorno: {} as Record<string, Record<string, number>>,
+    por_origem_emp_novo: {} as Record<string, Record<string, number>>,
+    por_origem_emp_retorno: {} as Record<string, Record<string, number>>,
     por_empreendimento: result,
     origens_list: [] as string[],
     ultimas_origens_list: [] as string[],
@@ -231,16 +234,24 @@ export async function GET(request: NextRequest) {
     if (!totals.por_imobiliaria_emp_sit[imob][empTotal]) totals.por_imobiliaria_emp_sit[imob][empTotal] = {};
     totals.por_imobiliaria_emp_sit[imob][empTotal][sitTotal] = (totals.por_imobiliaria_emp_sit[imob][empTotal][sitTotal] || 0) + 1;
 
-    // Track novo / retorno by imobiliária × empreendimento
+    if (!totals.por_origem_emp_sit[origem]) totals.por_origem_emp_sit[origem] = {};
+    if (!totals.por_origem_emp_sit[origem][empTotal]) totals.por_origem_emp_sit[origem][empTotal] = {};
+    totals.por_origem_emp_sit[origem][empTotal][sitTotal] = (totals.por_origem_emp_sit[origem][empTotal][sitTotal] || 0) + 1;
+
+    // Track novo / retorno by imobiliária × empreendimento and origem × empreendimento
     const isTruthyTotal = (v: unknown) => v === true || v === 1 || v === "S" || v === "s" || v === "true" || v === "sim";
     if (isTruthyTotal(lead["novo"])) {
       if (!totals.por_imobiliaria_emp_novo[imob]) totals.por_imobiliaria_emp_novo[imob] = {};
       totals.por_imobiliaria_emp_novo[imob][empTotal] = (totals.por_imobiliaria_emp_novo[imob][empTotal] || 0) + 1;
+      if (!totals.por_origem_emp_novo[origem]) totals.por_origem_emp_novo[origem] = {};
+      totals.por_origem_emp_novo[origem][empTotal] = (totals.por_origem_emp_novo[origem][empTotal] || 0) + 1;
       totals.total_novo += 1;
     }
     if (isTruthyTotal(lead["retorno"])) {
       if (!totals.por_imobiliaria_emp_retorno[imob]) totals.por_imobiliaria_emp_retorno[imob] = {};
       totals.por_imobiliaria_emp_retorno[imob][empTotal] = (totals.por_imobiliaria_emp_retorno[imob][empTotal] || 0) + 1;
+      if (!totals.por_origem_emp_retorno[origem]) totals.por_origem_emp_retorno[origem] = {};
+      totals.por_origem_emp_retorno[origem][empTotal] = (totals.por_origem_emp_retorno[origem][empTotal] || 0) + 1;
       totals.total_retorno += 1;
     }
   }
