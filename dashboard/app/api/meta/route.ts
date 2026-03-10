@@ -55,13 +55,10 @@ export async function GET(request: NextRequest) {
     META_ACCOUNTS.map(async (account) => {
       try {
         const params = new URLSearchParams({
-          level: "campaign",          // campaign level like n8n — ensures actions array is populated
+          // account level = same aggregation as Ads Manager account view
           time_range: timeRange,
-          fields: META_FIELDS.join(","),
-          action_attribution_windows: JSON.stringify(["1d_click", "1d_view"]),
-          filtering: JSON.stringify([
-            { field: "campaign.effective_status", operator: "IN", value: ["ACTIVE", "PAUSED"] },
-          ]),
+          fields: META_FIELDS.filter(f => f !== "campaign_name").join(","),
+          use_account_attribution_setting: "true",
           limit: "500",
           access_token: ACCESS_TOKEN,
         });
