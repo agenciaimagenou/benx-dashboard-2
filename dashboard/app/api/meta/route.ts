@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { META_ACCOUNTS, META_FIELDS } from "@/lib/meta-accounts";
 import { MetaSummaryByAccount } from "@/types";
 
+export const dynamic = "force-dynamic";
+
 const ACCESS_TOKEN = process.env.META_ACCESS_TOKEN!;
 const GRAPH_API = "https://graph.facebook.com/v24.0";
 
@@ -147,5 +149,7 @@ export async function GET(request: NextRequest) {
     })
   );
 
-  return NextResponse.json(summaryByAccount);
+  return NextResponse.json(summaryByAccount, {
+    headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
+  });
 }

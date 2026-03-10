@@ -135,9 +135,9 @@ export default function Dashboard() {
     const end   = toISODate(range.end);
     try {
       const [mr, cr, ar] = await Promise.all([
-        fetch(`/api/meta?date_start=${start}&date_end=${end}`),
-        fetch(`/api/crm?date_start=${start}&date_end=${end}`),
-        fetch(`/api/analytics?date_start=${start}&date_end=${end}&stuck_days=${threshold}`),
+        fetch(`/api/meta?date_start=${start}&date_end=${end}`, { cache: "no-store" }),
+        fetch(`/api/crm?date_start=${start}&date_end=${end}`, { cache: "no-store" }),
+        fetch(`/api/analytics?date_start=${start}&date_end=${end}&stuck_days=${threshold}`, { cache: "no-store" }),
       ]);
       const [meta, crm, analytics] = await Promise.all([
         mr.ok ? mr.json() : [],
