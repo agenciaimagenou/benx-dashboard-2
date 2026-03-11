@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   const empreendimento = searchParams.get("empreendimento");
   const dateStartStr   = searchParams.get("date_start");
   const dateEndStr     = searchParams.get("date_end");
-  const tipo           = searchParams.get("tipo") ?? "ganhos"; // "ganhos" | "reservas"
+  const tipo           = searchParams.get("tipo") ?? "ganhos"; // "ganhos" | "reservas" | "visita_agendada" | "visita_realizada"
 
   if (!empreendimento || !dateStartStr || !dateEndStr) {
     return NextResponse.json({ error: "empreendimento, date_start e date_end são obrigatórios" }, { status: 400 });
@@ -33,6 +33,9 @@ export async function GET(request: NextRequest) {
     const { data: page, error } = await supabaseAdmin
       .from("leads2")
       .select(SELECT)
+      .or(`empreendimento_primeiro.ilike.${empreendimento},empreendimento.ilike.${empreendimento}`)
+      .gte("data_cad", `${dateStartStr}T00:00:00`)
+      .lte("data_cad", `${dateEndStr}T23:59:59`)
       .range(from, from + PAGE - 1);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!page || page.length === 0) break;
@@ -45,11 +48,11 @@ export async function GET(request: NextRequest) {
   const endDate   = new Date(`${dateEndStr}T23:59:59`);
 
   const filtered = allLeads.filter((lead) => {
-    // Date range filter
+    // Date range filter (in-memory fallback for non-ISO formats)
     const d = parseBrDate(lead["data_cad"] as string | null);
     if (!d || d < startDate || d > endDate) return false;
 
-    // Empreendimento filter — use primary empreendimento
+    // Empreendimento filter
     const emp = ((lead["empreendimento_primeiro"] || lead["empreendimento"]) as string) || "";
     if (emp.toLowerCase().trim() !== empreendimento.toLowerCase().trim()) return false;
 
@@ -58,14 +61,49 @@ export async function GET(request: NextRequest) {
     const reserva  = (lead["reserva"] as number || 0) > 0;
     const ganhos   = situacao.includes("ganho") || situacao.includes("venda");
 
-    if (tipo === "ganhos") {
-      return ganhos;
-    }
-    if (tipo === "reservas") {
-      return reserva || situacao.includes("reserva");
-    }
-    return false;
+    if (tipo === "ganhos") return ganhos;
+    if (tipo === "reservas") return reserva || situacao.includes("reserva");
+    // visita types handled separately below
+    return true;
   });
+
+  // For visita types, cross-reference with Visitas2 table
+  if (tipo === "visita_agendada" || tipo === "visita_realizada") {
+    const leadIds = filtered.map(l => l["idlead"] as number);
+    if (leadIds.length === 0) return NextResponse.json({ leads: [], total: 0 });
+
+    const targetSits = tipo === "visita_agendada"
+      ? ["pendente", "em andamento"]
+      : ["concluída", "concluida"];
+
+    const { data: visitas, error: vError } = await supabaseAdmin
+      .from("Visitas2")
+      .select("idlead, situacao")
+      .in("idlead", leadIds);
+
+    if (vError) return NextResponse.json({ error: vError.message }, { status: 500 });
+
+    const visitaLeadIds = new Set<number>(
+      (visitas ?? [])
+        .filter(v => targetSits.includes(String(v.situacao || "").toLowerCase().trim()))
+        .map(v => v.idlead as number)
+    );
+
+    const visitaLeads = filtered
+      .filter(l => visitaLeadIds.has(l["idlead"] as number))
+      .map((l) => ({
+        id:             l["idlead"],
+        nome:           (l["nome"] as string) || "—",
+        situacao:       (l["situacao"] as string) || "—",
+        corretor:       ((l["corretor"] as string) || "—").split(" - ")[0],
+        empreendimento: (l["empreendimento_primeiro"] || l["empreendimento"]) as string,
+        origem:         (l["origem_nome"] as string) || "—",
+        data_cadastro:  (l["data_cad"] as string) || "—",
+        score:          l["score"] ?? 0,
+      }));
+
+    return NextResponse.json({ leads: visitaLeads, total: visitaLeads.length });
+  }
 
   const leads = filtered.map((l) => ({
     id:             l["idlead"],

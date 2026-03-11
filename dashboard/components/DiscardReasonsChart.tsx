@@ -19,6 +19,9 @@ interface MotivoDescarteLead {
   nome: string;
   corretor: string;
   empreendimento: string;
+  imobiliaria?: string;
+  origem?: string;
+  ultima_origem?: string;
   data_cadastro: string | null;
 }
 

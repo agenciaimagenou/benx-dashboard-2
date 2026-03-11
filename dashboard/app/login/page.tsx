@@ -285,7 +285,7 @@ function LoginContent() {
 
         <div className="flex flex-col items-center gap-2 mt-6">
           <p className="text-xs text-gray-400">Desenvolvido por</p>
-          <Image src="/logo-imagenou.png" alt="Imagenou" width={120} height={42} className="object-contain opacity-80" />
+          <Image src="/logo-imagenou-v2.png" alt="Imagenou" width={120} height={42} className="object-contain opacity-80" />
         </div>
       </div>
     </div>

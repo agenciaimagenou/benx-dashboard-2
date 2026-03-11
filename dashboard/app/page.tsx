@@ -289,6 +289,8 @@ export default function Dashboard() {
               metaData={filteredMetaData}
               loading={loading}
               accountCrmKeys={selectedAccounts.length > 0 ? filteredMetaData.map(m => m.crm_key) : null}
+              dateStart={toISODate(dateRange.start)}
+              dateEnd={toISODate(dateRange.end)}
             />
           )}
           {activePage === "analytics" && (

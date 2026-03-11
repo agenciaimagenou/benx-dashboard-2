@@ -49,7 +49,7 @@ export default function FunnelChart({ porSituacao, loading }: Props) {
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
       <h3 className="font-semibold text-gray-800 mb-1">Funil CRM por Situação</h3>
       <p className="text-xs text-gray-500 mb-4">Distribuição de {formatNumber(total)} leads</p>
-      <ResponsiveContainer width="100%" height={260}>
+      <ResponsiveContainer width="100%" height={310}>
         <PieChart>
           <Pie
             data={chartData}

@@ -8,6 +8,7 @@ import OrigemChart from "@/components/OrigemChart";
 import MultiSelectDropdown from "@/components/MultiSelectDropdown";
 import { MetaSummaryByAccount } from "@/types";
 import { formatCurrency, formatNumber, cn, normalizeStr, findBestMatch } from "@/lib/utils";
+import GanhosModal from "@/components/GanhosModal";
 
 interface LeadGanho {
   id: number;
@@ -63,7 +64,9 @@ interface Props {
   crmData: CRMResponse | null;
   metaData: MetaSummaryByAccount[];
   loading: boolean;
-  accountCrmKeys?: string[] | null; // null = all accounts
+  accountCrmKeys?: string[] | null;
+  dateStart?: string;
+  dateEnd?: string;
 }
 
 function isVendaSit(sit: string) {
@@ -83,7 +86,7 @@ function matchesAccount(empName: string, keys: string[]): boolean {
 
 type FunnelSortKey = "empreendimento" | "total" | "conversao";
 
-export default function CRMSection({ crmData, metaData, loading, accountCrmKeys }: Props) {
+export default function CRMSection({ crmData, metaData, loading, accountCrmKeys, dateStart = "", dateEnd = "" }: Props) {
   const [filterOrigens, setFilterOrigens] = useState<string[]>([]);
   const [filterUltimaOrigem, setFilterUltimaOrigem] = useState<string[]>([]);
   const [filterImobiliaria, setFilterImobiliaria] = useState<string[]>([]);
@@ -104,6 +107,7 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
   const imobiliariasOptions = Object.keys(crmData?.por_imobiliaria_emp ?? {}).sort();
   const ultimasOrigensOptions = crmData?.ultimas_origens_list ?? [];
   const [vendaModal, setVendaModal] = useState<{ empreendimento: string; leads: LeadGanho[] } | null>(null);
+  const [visitaModal, setVisitaModal] = useState<{ empreendimento: string; tipo: "visita_agendada" | "visita_realizada" } | null>(null);
 
   const totalSpend    = metaData.reduce((s, m) => s + m.total_spend, 0);
   const allEmps       = crmData?.por_empreendimento ?? [];
@@ -500,8 +504,8 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
                       )}
                     >
                       <td className={cn(
-                        "px-4 py-3 font-medium text-gray-800 whitespace-nowrap sticky left-0 z-10 border-r border-gray-100",
-                        i % 2 === 0 ? "bg-white" : "bg-gray-50/50"
+                        "px-4 py-3 font-medium text-gray-800 whitespace-nowrap sticky left-0 z-10 border-r border-gray-200",
+                        i % 2 === 0 ? "bg-white" : "bg-gray-50"
                       )}>
                         {emp.empreendimento}
                       </td>
@@ -540,23 +544,38 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
                         const cnt = effSit[sit] ?? 0;
                         const pct = effTotal > 0 ? ((cnt / effTotal) * 100).toFixed(1) : "0.0";
                         const venda = isVendaSit(sit);
+                        const isVisitaAgendada = sit === "Visita Agendada";
+                        const isVisitaRealizada = sit === "Visita Realizada";
+                        const isClickable = venda || isVisitaAgendada || isVisitaRealizada;
                         return (
                           <td
                             key={sit}
                             className={cn(
                               "px-3 py-3 text-right text-xs",
-                              venda && "bg-emerald-50/60"
+                              venda && "bg-emerald-50/60",
+                              (isVisitaAgendada || isVisitaRealizada) && "bg-sky-50/60"
                             )}
                           >
                             {cnt > 0 ? (
-                              venda ? (
+                              isClickable ? (
                                 <div className="flex flex-col items-end gap-0.5">
                                   <button
-                                    onClick={() => openVendaModal(emp)}
-                                    className="inline-flex items-center gap-1 font-bold text-emerald-700 bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-full hover:bg-emerald-200 transition-colors cursor-pointer"
-                                    title={`Ver ${cnt} venda${cnt > 1 ? "s" : ""} de ${emp.empreendimento}`}
+                                    onClick={() => {
+                                      if (venda) openVendaModal(emp);
+                                      else if (dateStart && dateEnd) setVisitaModal({
+                                        empreendimento: emp.empreendimento,
+                                        tipo: isVisitaAgendada ? "visita_agendada" : "visita_realizada",
+                                      });
+                                    }}
+                                    className={cn(
+                                      "inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full border transition-colors cursor-pointer",
+                                      venda
+                                        ? "text-emerald-700 bg-emerald-100 border-emerald-200 hover:bg-emerald-200"
+                                        : "text-sky-700 bg-sky-100 border-sky-200 hover:bg-sky-200"
+                                    )}
+                                    title={`Ver leads — ${sit} — ${emp.empreendimento}`}
                                   >
-                                    <Trophy className="w-3 h-3" />
+                                    {venda ? <Trophy className="w-3 h-3" /> : <Users className="w-3 h-3" />}
                                     {cnt}
                                   </button>
                                   <span className="text-gray-400 text-xs">{pct}%</span>
@@ -608,7 +627,7 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-gray-200 bg-gray-100">
-                    <td className="px-4 py-3 text-xs font-bold text-gray-700 uppercase sticky left-0 bg-gray-100 z-10 border-r border-gray-200">Total</td>
+                    <td className="px-4 py-3 text-xs font-bold text-gray-700 uppercase sticky left-0 bg-gray-100 z-20 border-r border-gray-200">Total</td>
                     <td className="px-4 py-3 text-right text-xs font-bold text-blue-700 bg-blue-100/60 border-r border-gray-200">
                       {formatNumber(totalCrmLeads)}
                     </td>
@@ -670,6 +689,17 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys 
           );
         })()}
       </div>
+
+      {/* Modal — Visita Agendada / Realizada */}
+      {visitaModal && dateStart && dateEnd && (
+        <GanhosModal
+          empreendimento={visitaModal.empreendimento}
+          dateStart={dateStart}
+          dateEnd={dateEnd}
+          tipo={visitaModal.tipo}
+          onClose={() => setVisitaModal(null)}
+        />
+      )}
 
       {/* Modal — Vendas Realizadas */}
       {vendaModal && (

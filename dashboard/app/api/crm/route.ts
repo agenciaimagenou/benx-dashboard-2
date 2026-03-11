@@ -46,6 +46,8 @@ export async function GET(request: NextRequest) {
     const { data: page, error } = await supabaseAdmin
       .from("leads2")
       .select(SELECT)
+      .gte("data_cad", `${dateStartStr}T00:00:00`)
+      .lte("data_cad", `${dateEndStr}T23:59:59`)
       .range(from, from + PAGE - 1);
     if (error) {
       console.error("Supabase error:", error);

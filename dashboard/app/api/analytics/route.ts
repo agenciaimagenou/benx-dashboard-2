@@ -115,6 +115,9 @@ export interface MotivoDescarteLead {
   nome: string;
   corretor: string;
   empreendimento: string;
+  imobiliaria: string;
+  origem: string;
+  ultima_origem: string;
   data_cadastro: string | null;
 }
 
@@ -171,6 +174,8 @@ export async function GET(request: NextRequest) {
     const { data: page, error } = await supabaseAdmin
       .from("leads2")
       .select(SELECT)
+      .gte("data_cad", `${dateStartStr}T00:00:00`)
+      .lte("data_cad", `${dateEndStr}T23:59:59`)
       .range(from, from + PAGE - 1);
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -380,6 +385,9 @@ export async function GET(request: NextRequest) {
       nome: (lead["nome"] || "—") as string,
       corretor: (lead["corretor"] || "—") as string,
       empreendimento: emp,
+      imobiliaria: normalizeImobiliaria(lead["imobiliaria"]),
+      origem: normalizeOrigem(lead["origem_nome"]),
+      ultima_origem: normalizeOrigem(lead["origem_ultimo"]),
       data_cadastro: (lead["data_cad"] || null) as string | null,
     });
   }

@@ -58,7 +58,7 @@ interface AnalyticsData {
     submotivo: string;
     empreendimento: string;
     count: number;
-    leads?: Array<{ id: number; nome: string; corretor: string; empreendimento: string; data_cadastro: string | null }>;
+    leads?: Array<{ id: number; nome: string; corretor: string; empreendimento: string; imobiliaria: string; origem: string; ultima_origem: string; data_cadastro: string | null }>;
   }>;
   corretores_parados: CorretorParado[];
   corretores_total: Record<string, number>;
@@ -165,12 +165,28 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
       .sort((a, b) => b.count - a.count);
   }, [data, filteredLeads, accountCrmKeys, filterOrigens, filterUltimaOrigem]);
 
-  // Filter motivos_descarte by accountCrmKeys (origem not available in this dataset)
+  // Filter motivos_descarte by accountCrmKeys + internal filters; rebuild count from filtered leads
   const filteredMotivosDescarte = useMemo(() => {
     const motivos = data?.motivos_descarte ?? [];
-    if (!accountCrmKeys) return motivos;
-    return motivos.filter(m => matchesAccount(m.empreendimento, accountCrmKeys));
-  }, [data, accountCrmKeys]);
+    const anyInternalFilter = filterOrigens.length > 0 || filterUltimaOrigem.length > 0 || filterImobiliaria.length > 0;
+
+    return motivos
+      .map(m => {
+        if (accountCrmKeys && !matchesAccount(m.empreendimento, accountCrmKeys)) return null;
+        if (!anyInternalFilter) return m;
+
+        // Filter leads by internal filters and rebuild count
+        const filteredLeadsForMotivo = (m.leads ?? []).filter(l => {
+          if (filterOrigens.length > 0 && !filterOrigens.includes(l.origem ?? "Não definido")) return false;
+          if (filterUltimaOrigem.length > 0 && !filterUltimaOrigem.includes(l.ultima_origem ?? "Não definido")) return false;
+          if (filterImobiliaria.length > 0 && !filterImobiliaria.includes(l.imobiliaria ?? "Sem imobiliária")) return false;
+          return true;
+        });
+        if (filteredLeadsForMotivo.length === 0) return null;
+        return { ...m, count: filteredLeadsForMotivo.length, leads: filteredLeadsForMotivo };
+      })
+      .filter((m): m is NonNullable<typeof m> => m !== null);
+  }, [data, accountCrmKeys, filterOrigens, filterUltimaOrigem, filterImobiliaria]);
 
   const resumo = useMemo(() => {
     if (!data) return null;

@@ -18,7 +18,7 @@ interface Props {
   empreendimento: string;
   dateStart: string;
   dateEnd: string;
-  tipo: "ganhos" | "reservas";
+  tipo: "ganhos" | "reservas" | "visita_agendada" | "visita_realizada";
   onClose: () => void;
 }
 
@@ -44,7 +44,11 @@ export default function GanhosModal({ empreendimento, dateStart, dateEnd, tipo, 
       .finally(() => setLoading(false));
   }, [empreendimento, dateStart, dateEnd, tipo]);
 
-  const title = tipo === "ganhos" ? "Ganhos / Vendas" : "Reservas";
+  const title =
+    tipo === "ganhos" ? "Ganhos / Vendas" :
+    tipo === "reservas" ? "Reservas" :
+    tipo === "visita_agendada" ? "Visita Agendada" :
+    "Visita Realizada";
 
   return (
     <div
