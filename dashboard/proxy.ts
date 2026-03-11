@@ -53,6 +53,17 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(homeUrl);
   }
 
+  // Forçar criação de senha para usuários que ainda não definiram uma
+  if (user && !pathname.startsWith("/redefinir-senha") && !pathname.startsWith("/api/") && !pathname.startsWith("/auth/") && !pathname.startsWith("/login")) {
+    const needsPasswordChange = user.user_metadata?.needs_password_change === true;
+    if (needsPasswordChange) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/redefinir-senha";
+      redirectUrl.search = "?novo=true";
+      return NextResponse.redirect(redirectUrl);
+    }
+  }
+
   return supabaseResponse;
 }
 

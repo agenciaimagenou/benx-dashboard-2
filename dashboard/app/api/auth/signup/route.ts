@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     const { error: createError } = await supabase.auth.admin.createUser({
       email: normalizedEmail,
       password: tempPassword,
-      user_metadata: { name: name.trim() },
+      user_metadata: { name: name.trim(), needs_password_change: true },
       email_confirm: true,
     });
 

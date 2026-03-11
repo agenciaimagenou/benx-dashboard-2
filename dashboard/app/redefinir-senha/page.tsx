@@ -82,7 +82,7 @@ function RedefinirSenhaContent() {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
+    const { error } = await supabase.auth.updateUser({ password, data: { needs_password_change: false } });
 
     if (error) {
       setLoading(false);
