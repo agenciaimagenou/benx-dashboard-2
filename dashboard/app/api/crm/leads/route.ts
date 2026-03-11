@@ -102,71 +102,89 @@ export async function GET(request: NextRequest) {
     return true;
   });
 
-  // For visita types: query Visitas2 by nome_empreendimento first (mirrors main CRM counting logic)
+  // For visita types: mirror main CRM route logic exactly
+  // Get ALL leads in date range → query Visitas2 for their IDs → filter by empreendimento
   if (tipo === "visita_agendada" || tipo === "visita_realizada") {
     const targetSits = tipo === "visita_agendada"
       ? ["pendente", "em andamento"]
       : ["concluída", "concluida"];
 
-    // Step 1: get all visita lead IDs for this empreendimento + status from Visitas2
-    const { data: visitas, error: vError } = await supabaseAdmin
-      .from("Visitas2")
-      .select("idlead, situacao")
-      .ilike("nome_empreendimento", empreendimento);
-
-    if (vError) return NextResponse.json({ error: vError.message }, { status: 500 });
-
-    const visitaLeadIds = (visitas ?? [])
-      .filter(v => targetSits.includes(String(v.situacao || "").toLowerCase().trim()))
-      .map(v => v.idlead as number);
-
-    if (visitaLeadIds.length === 0) return NextResponse.json({ leads: [], total: 0 });
-
-    // Step 2: fetch lead details from leads2, applying date range + internal filters
-    const CHUNK = 500;
-    const leadChunks = await Promise.all(
-      Array.from({ length: Math.ceil(visitaLeadIds.length / CHUNK) }, (_, i) =>
-        supabaseAdmin
-          .from("leads2")
-          .select(SELECT)
-          .in("idlead", visitaLeadIds.slice(i * CHUNK, (i + 1) * CHUNK))
-          .gte("data_cad", `${dateStartStr}T00:00:00`)
-          .lte("data_cad", `${dateEndStr}T23:59:59`)
-      )
-    );
-
-    const visitaLeads: Record<string, unknown>[] = [];
-    for (const r of leadChunks) {
-      if (r.data) visitaLeads.push(...r.data);
+    // Step 1: get ALL leads in date range (applying internal filters), paginated
+    const SELECT_ALL = `idlead, situacao, nome, corretor, imobiliaria, empreendimento, empreendimento_primeiro, origem_nome, origem_ultimo, data_cad, score`;
+    const PAGE2 = 1000;
+    const allLeadsInRange: Record<string, unknown>[] = [];
+    let from2 = 0;
+    while (true) {
+      const { data: page, error } = await supabaseAdmin
+        .from("leads2")
+        .select(SELECT_ALL)
+        .gte("data_cad", `${dateStartStr}T00:00:00`)
+        .lte("data_cad", `${dateEndStr}T23:59:59`)
+        .range(from2, from2 + PAGE2 - 1);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (!page || page.length === 0) break;
+      allLeadsInRange.push(...page);
+      if (page.length < PAGE2) break;
+      from2 += PAGE2;
     }
 
-    // Apply internal filters
-    const filteredVisitaLeads = visitaLeads.filter((lead) => {
+    // Apply internal filters to all leads
+    const filteredInRange = allLeadsInRange.filter((lead) => {
       if (filterOrigens.length > 0) {
-        const origem = normalizeOrigem(lead["origem_nome"]);
-        if (!filterOrigens.includes(origem)) return false;
+        if (!filterOrigens.includes(normalizeOrigem(lead["origem_nome"]))) return false;
       }
       if (filterUltimaOrigem.length > 0) {
-        const ultimaOrigem = normalizeOrigem(lead["origem_ultimo"]);
-        if (!filterUltimaOrigem.includes(ultimaOrigem)) return false;
+        if (!filterUltimaOrigem.includes(normalizeOrigem(lead["origem_ultimo"]))) return false;
       }
       if (filterImobiliaria.length > 0) {
-        const imob = normalizeImobiliaria(lead["imobiliaria"]);
-        if (!filterImobiliaria.includes(imob)) return false;
+        if (!filterImobiliaria.includes(normalizeImobiliaria(lead["imobiliaria"]))) return false;
       }
       return true;
     });
 
-    const result = filteredVisitaLeads.map((l) => ({
-      id:             l["idlead"],
-      nome:           (l["nome"] as string) || "—",
-      situacao:       (l["situacao"] as string) || "—",
-      corretor:       ((l["corretor"] as string) || "—").split(" - ")[0],
-      empreendimento: (l["empreendimento_primeiro"] || l["empreendimento"]) as string,
-      origem:         (l["origem_nome"] as string) || "—",
-      data_cadastro:  (l["data_cad"] as string) || "—",
-      score:          l["score"] ?? 0,
-    }));
+    const leadIdMap = new Map(filteredInRange.map(l => [l["idlead"] as number, l]));
+    const leadIdArray2 = Array.from(leadIdMap.keys());
+    if (leadIdArray2.length === 0) return NextResponse.json({ leads: [], total: 0 });
+
+    // Step 2: query Visitas2 for those lead IDs (same as main CRM route)
+    const CHUNK = 500;
+    const visResults = await Promise.all(
+      Array.from({ length: Math.ceil(leadIdArray2.length / CHUNK) }, (_, i) =>
+        supabaseAdmin
+          .from("Visitas2")
+          .select("idlead, situacao, nome_empreendimento")
+          .in("idlead", leadIdArray2.slice(i * CHUNK, (i + 1) * CHUNK))
+      )
+    );
+
+    // Step 3: filter by empreendimento name + status (exactly like main CRM route)
+    const matchedLeadIds = new Set<number>();
+    for (const r of visResults) {
+      for (const v of (r.data ?? [])) {
+        const emp = String(v["nome_empreendimento"] || "");
+        const sit = String(v["situacao"] || "").toLowerCase().trim();
+        if (
+          emp.toLowerCase().trim() === empreendimento.toLowerCase().trim() &&
+          targetSits.includes(sit)
+        ) {
+          matchedLeadIds.add(v["idlead"] as number);
+        }
+      }
+    }
+
+    const result = Array.from(matchedLeadIds)
+      .map(id => leadIdMap.get(id))
+      .filter((l): l is Record<string, unknown> => !!l)
+      .map((l) => ({
+        id:             l["idlead"],
+        nome:           (l["nome"] as string) || "—",
+        situacao:       (l["situacao"] as string) || "—",
+        corretor:       ((l["corretor"] as string) || "—").split(" - ")[0],
+        empreendimento: (l["empreendimento_primeiro"] || l["empreendimento"]) as string,
+        origem:         (l["origem_nome"] as string) || "—",
+        data_cadastro:  (l["data_cad"] as string) || "—",
+        score:          l["score"] ?? 0,
+      }));
 
     return NextResponse.json({ leads: result, total: result.length });
   }
