@@ -78,7 +78,7 @@ export default function FunnelChart({ porSituacao, loading }: Props) {
             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: COLORS[i] }} />
             <span className="text-xs text-gray-600 flex-1 truncate">{item.name}</span>
             <span className="text-xs font-semibold text-gray-700">{formatNumber(item.value)}</span>
-            <span className="text-xs text-gray-400 w-10 text-right">{item.percent.toFixed(0)}%</span>
+            <span className="text-xs text-gray-400 w-10 text-right">{item.percent.toFixed(1)}%</span>
           </div>
         ))}
       </div>
