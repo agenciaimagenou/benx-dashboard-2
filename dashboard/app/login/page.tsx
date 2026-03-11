@@ -23,6 +23,31 @@ function LoginContent() {
   const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
+    // Checar hash primeiro — se tiver access_token válido, redireciona sem mostrar erros
+    const hash = window.location.hash.slice(1);
+    if (hash) {
+      const hashParams = new URLSearchParams(hash);
+      const accessToken  = hashParams.get("access_token");
+      const refreshToken = hashParams.get("refresh_token") ?? "";
+      const hashType     = hashParams.get("type");
+
+      if (accessToken && (hashType === "recovery" || hashType === "signup")) {
+        window.history.replaceState(null, "", window.location.pathname);
+        supabase.auth
+          .setSession({ access_token: accessToken, refresh_token: refreshToken })
+          .then(() => { window.location.href = "/redefinir-senha?novo=true"; });
+        return;
+      }
+
+      if (hashParams.get("error_code") || hashParams.get("error")) {
+        setError("O link expirou ou já foi usado. Solicite um novo abaixo.");
+        setMode("forgot");
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
+        return;
+      }
+    }
+
+    // Query params — processados apenas se não houve redirecionamento por hash
     const err = searchParams.get("error");
     const confirmed = searchParams.get("confirmed");
     if (err === "callback") {
@@ -37,31 +62,6 @@ function LoginContent() {
     }
     if (searchParams.get("sessao_expirada") === "true") {
       setError("Sua sessão expirou por inatividade. Faça login novamente.");
-    }
-
-    // Tratar tokens/erros do Supabase no hash da URL (fluxo implícito)
-    const hash = window.location.hash.slice(1);
-    if (hash) {
-      const hashParams = new URLSearchParams(hash);
-      const accessToken  = hashParams.get("access_token");
-      const refreshToken = hashParams.get("refresh_token") ?? "";
-      const hashType     = hashParams.get("type");
-
-      // Sucesso: link de criação/redefinição de senha — estabelece sessão e redireciona
-      if (accessToken && (hashType === "recovery" || hashType === "signup")) {
-        window.history.replaceState(null, "", window.location.pathname + window.location.search);
-        supabase.auth
-          .setSession({ access_token: accessToken, refresh_token: refreshToken })
-          .then(() => { window.location.href = "/redefinir-senha?novo=true"; });
-        return;
-      }
-
-      // Erro: link expirado ou inválido
-      if (hashParams.get("error_code") || hashParams.get("error")) {
-        setError("O link expirou ou já foi usado. Solicite um novo abaixo.");
-        setMode("forgot");
-        window.history.replaceState(null, "", window.location.pathname + window.location.search);
-      }
     }
   }, [searchParams]);
 
