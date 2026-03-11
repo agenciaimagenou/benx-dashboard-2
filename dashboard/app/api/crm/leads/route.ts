@@ -172,17 +172,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Step 4: filter by status — for agendada, exclude leads that already have concluída
-    const realizadaSits = new Set(["concluída", "concluida"]);
+    // Step 4: include any lead that has at least one matching status entry
     const matchedLeadIds = new Set<number>();
     for (const [id, sits] of leadSituacoes) {
-      const hasTarget = targetSits.some(s => sits.has(s));
-      if (!hasTarget) continue;
-      if (tipo === "visita_agendada") {
-        // Only include if no concluída entry exists (visit not yet completed)
-        if ([...sits].some(s => realizadaSits.has(s))) continue;
+      if (targetSits.some(s => sits.has(s))) {
+        matchedLeadIds.add(id);
       }
-      matchedLeadIds.add(id);
     }
 
     const result = Array.from(matchedLeadIds)
