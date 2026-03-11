@@ -276,14 +276,49 @@ export async function GET(request: NextRequest) {
 
   const visitasAgendadasByEmp: Record<string, number> = {};
   const visitasRealizadasByEmp: Record<string, number> = {};
+  // Breakdown by (origem|ultima_origem|imobiliaria) × empreendimento for filtered visita counts
+  const visitasAgendadasByOrigemEmp: Record<string, Record<string, number>> = {};
+  const visitasRealizadasByOrigemEmp: Record<string, Record<string, number>> = {};
+  const visitasAgendadasByUltimaOrigemEmp: Record<string, Record<string, number>> = {};
+  const visitasRealizadasByUltimaOrigemEmp: Record<string, Record<string, number>> = {};
+  const visitasAgendadasByImobEmp: Record<string, Record<string, number>> = {};
+  const visitasRealizadasByImobEmp: Record<string, Record<string, number>> = {};
+
+  // Build lead lookup for origin/imobiliaria attribution
+  const leadAttrMap = new Map(allLeads.map(l => [l["idlead"] as number, {
+    origem:       normalizeOrigem(l["origem_nome"]),
+    ultimaOrigem: normalizeOrigem(l["origem_ultimo"]),
+    imob:         normalizeImobiliaria(l["imobiliaria"]),
+  }]));
+
   for (const v of allVisitas) {
     if (!filteredLeadIds.has(v["idlead"] as number)) continue;
     const emp = (v["nome_empreendimento"] || "Não Identificado") as string;
     const sit = String(v["situacao"] || "").toLowerCase().trim();
-    if (sit === "pendente" || sit === "em andamento") {
-      visitasAgendadasByEmp[emp] = (visitasAgendadasByEmp[emp] || 0) + 1;
-    } else if (sit === "concluída" || sit === "concluida") {
-      visitasRealizadasByEmp[emp] = (visitasRealizadasByEmp[emp] || 0) + 1;
+    const isAgendada  = sit === "pendente" || sit === "em andamento";
+    const isRealizada = sit === "concluída" || sit === "concluida";
+    if (!isAgendada && !isRealizada) continue;
+
+    if (isAgendada)  visitasAgendadasByEmp[emp]  = (visitasAgendadasByEmp[emp]  || 0) + 1;
+    if (isRealizada) visitasRealizadasByEmp[emp]  = (visitasRealizadasByEmp[emp] || 0) + 1;
+
+    const attr = leadAttrMap.get(v["idlead"] as number);
+    if (!attr) continue;
+
+    if (isAgendada) {
+      if (!visitasAgendadasByOrigemEmp[attr.origem])       visitasAgendadasByOrigemEmp[attr.origem]       = {};
+      if (!visitasAgendadasByUltimaOrigemEmp[attr.ultimaOrigem]) visitasAgendadasByUltimaOrigemEmp[attr.ultimaOrigem] = {};
+      if (!visitasAgendadasByImobEmp[attr.imob])           visitasAgendadasByImobEmp[attr.imob]           = {};
+      visitasAgendadasByOrigemEmp[attr.origem][emp]            = (visitasAgendadasByOrigemEmp[attr.origem][emp]            || 0) + 1;
+      visitasAgendadasByUltimaOrigemEmp[attr.ultimaOrigem][emp]= (visitasAgendadasByUltimaOrigemEmp[attr.ultimaOrigem][emp]|| 0) + 1;
+      visitasAgendadasByImobEmp[attr.imob][emp]                = (visitasAgendadasByImobEmp[attr.imob][emp]                || 0) + 1;
+    } else {
+      if (!visitasRealizadasByOrigemEmp[attr.origem])       visitasRealizadasByOrigemEmp[attr.origem]       = {};
+      if (!visitasRealizadasByUltimaOrigemEmp[attr.ultimaOrigem]) visitasRealizadasByUltimaOrigemEmp[attr.ultimaOrigem] = {};
+      if (!visitasRealizadasByImobEmp[attr.imob])           visitasRealizadasByImobEmp[attr.imob]           = {};
+      visitasRealizadasByOrigemEmp[attr.origem][emp]            = (visitasRealizadasByOrigemEmp[attr.origem][emp]            || 0) + 1;
+      visitasRealizadasByUltimaOrigemEmp[attr.ultimaOrigem][emp]= (visitasRealizadasByUltimaOrigemEmp[attr.ultimaOrigem][emp]|| 0) + 1;
+      visitasRealizadasByImobEmp[attr.imob][emp]                = (visitasRealizadasByImobEmp[attr.imob][emp]                || 0) + 1;
     }
   }
 
@@ -307,5 +342,13 @@ export async function GET(request: NextRequest) {
     if (realizadas > 0) emp.por_situacao["Visita Realizada"] = realizadas;
   }
 
-  return NextResponse.json(totals);
+  return NextResponse.json({
+    ...totals,
+    visitas_agendadas_por_origem_emp:        visitasAgendadasByOrigemEmp,
+    visitas_realizadas_por_origem_emp:       visitasRealizadasByOrigemEmp,
+    visitas_agendadas_por_ultima_origem_emp: visitasAgendadasByUltimaOrigemEmp,
+    visitas_realizadas_por_ultima_origem_emp:visitasRealizadasByUltimaOrigemEmp,
+    visitas_agendadas_por_imob_emp:          visitasAgendadasByImobEmp,
+    visitas_realizadas_por_imob_emp:         visitasRealizadasByImobEmp,
+  });
 }

@@ -58,6 +58,12 @@ interface CRMResponse {
   ultimas_origens_list: string[];
   total_novo: number;
   total_retorno: number;
+  visitas_agendadas_por_origem_emp:         Record<string, Record<string, number>>;
+  visitas_realizadas_por_origem_emp:        Record<string, Record<string, number>>;
+  visitas_agendadas_por_ultima_origem_emp:  Record<string, Record<string, number>>;
+  visitas_realizadas_por_ultima_origem_emp: Record<string, Record<string, number>>;
+  visitas_agendadas_por_imob_emp:           Record<string, Record<string, number>>;
+  visitas_realizadas_por_imob_emp:          Record<string, Record<string, number>>;
 }
 
 interface Props {
@@ -144,8 +150,11 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
     for (const imob of filterImobiliaria) {
       const sitMap = crmData?.por_imobiliaria_emp_sit[imob]?.[empName] ?? {};
       for (const [sit, cnt] of Object.entries(sitMap)) {
+        if (sit.toLowerCase().includes("visita")) continue; // use Visitas2 data below
         merged[sit] = (merged[sit] || 0) + cnt;
       }
+      merged["Visita Agendada"]  = (merged["Visita Agendada"]  || 0) + (crmData?.visitas_agendadas_por_imob_emp?.[imob]?.[empName]  ?? 0);
+      merged["Visita Realizada"] = (merged["Visita Realizada"] || 0) + (crmData?.visitas_realizadas_por_imob_emp?.[imob]?.[empName] ?? 0);
     }
     return merged;
   }
@@ -163,8 +172,11 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
     for (const o of filterOrigens) {
       const sitMap = crmData?.por_origem_emp_sit?.[o]?.[empName] ?? {};
       for (const [sit, cnt] of Object.entries(sitMap)) {
+        if (sit.toLowerCase().includes("visita")) continue; // use Visitas2 data below
         merged[sit] = (merged[sit] || 0) + cnt;
       }
+      merged["Visita Agendada"]  = (merged["Visita Agendada"]  || 0) + (crmData?.visitas_agendadas_por_origem_emp?.[o]?.[empName]  ?? 0);
+      merged["Visita Realizada"] = (merged["Visita Realizada"] || 0) + (crmData?.visitas_realizadas_por_origem_emp?.[o]?.[empName] ?? 0);
     }
     return merged;
   }
@@ -190,8 +202,11 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
     for (const uo of filterUltimaOrigem) {
       const sitMap = crmData?.por_ultima_origem_emp_sit?.[uo]?.[empName] ?? {};
       for (const [sit, cnt] of Object.entries(sitMap)) {
+        if (sit.toLowerCase().includes("visita")) continue; // use Visitas2 data below
         merged[sit] = (merged[sit] || 0) + cnt;
       }
+      merged["Visita Agendada"]  = (merged["Visita Agendada"]  || 0) + (crmData?.visitas_agendadas_por_ultima_origem_emp?.[uo]?.[empName]  ?? 0);
+      merged["Visita Realizada"] = (merged["Visita Realizada"] || 0) + (crmData?.visitas_realizadas_por_ultima_origem_emp?.[uo]?.[empName] ?? 0);
     }
     return merged;
   }
