@@ -121,7 +121,7 @@ export default function GanhosModal({ empreendimento, dateStart, dateEnd, tipo, 
                         <span className="truncate">{lead.nome}</span>
                         {lead.visitas_count && lead.visitas_count > 1 && (
                           <span className="flex-shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700">
-                            {lead.visitas_count}x
+                            {lead.visitas_count}x visitas
                           </span>
                         )}
                       </div>
