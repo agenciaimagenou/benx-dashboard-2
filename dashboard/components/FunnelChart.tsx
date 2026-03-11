@@ -42,8 +42,7 @@ export default function FunnelChart({ porSituacao, loading }: Props) {
 
   const chartData = Object.entries(porSituacao)
     .map(([name, value]) => ({ name, value, percent: (value / total) * 100 }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 10);
+    .sort((a, b) => b.value - a.value);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
@@ -74,7 +73,7 @@ export default function FunnelChart({ porSituacao, loading }: Props) {
 
       {/* Ranked list */}
       <div className="mt-2 space-y-1.5">
-        {chartData.slice(0, 5).map((item, i) => (
+        {chartData.map((item, i) => (
           <div key={item.name} className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: COLORS[i] }} />
             <span className="text-xs text-gray-600 flex-1 truncate">{item.name}</span>
