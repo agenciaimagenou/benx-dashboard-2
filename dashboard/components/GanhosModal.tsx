@@ -12,6 +12,7 @@ interface Lead {
   origem: string;
   data_cadastro: string;
   score: number;
+  visitas_count?: number;
 }
 
 interface Props {
@@ -115,7 +116,16 @@ export default function GanhosModal({ empreendimento, dateStart, dateEnd, tipo, 
                 {leads.map(lead => (
                   <tr key={lead.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-4 py-2.5 text-right text-xs font-mono text-gray-400 whitespace-nowrap">{lead.id}</td>
-                    <td className="px-4 py-2.5 font-medium text-gray-800 max-w-[180px] truncate">{lead.nome}</td>
+                    <td className="px-4 py-2.5 font-medium text-gray-800 max-w-[180px]">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span className="truncate">{lead.nome}</span>
+                        {lead.visitas_count && lead.visitas_count > 1 && (
+                          <span className="flex-shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700">
+                            {lead.visitas_count}x
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-2.5">
                       <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">
                         {lead.situacao}

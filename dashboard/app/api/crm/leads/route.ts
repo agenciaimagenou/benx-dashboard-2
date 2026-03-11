@@ -159,28 +159,23 @@ export async function GET(request: NextRequest) {
       )
     );
 
-    // Step 3: collect all statuses per lead for this empreendimento
-    const leadSituacoes = new Map<number, Set<string>>();
+    // Step 3: collect visit counts per lead for this empreendimento
+    const leadVisitCount = new Map<number, number>();
+    const leadHasTarget = new Set<number>();
     for (const r of visResults) {
       for (const v of (r.data ?? [])) {
         const emp = String(v["nome_empreendimento"] || "");
         if (emp.toLowerCase().trim() !== empreendimento.toLowerCase().trim()) continue;
         const sit = String(v["situacao"] || "").toLowerCase().trim();
         const id = v["idlead"] as number;
-        if (!leadSituacoes.has(id)) leadSituacoes.set(id, new Set());
-        leadSituacoes.get(id)!.add(sit);
+        if (targetSits.includes(sit)) {
+          leadHasTarget.add(id);
+          leadVisitCount.set(id, (leadVisitCount.get(id) ?? 0) + 1);
+        }
       }
     }
 
-    // Step 4: include any lead that has at least one matching status entry
-    const matchedLeadIds = new Set<number>();
-    for (const [id, sits] of leadSituacoes) {
-      if (targetSits.some(s => sits.has(s))) {
-        matchedLeadIds.add(id);
-      }
-    }
-
-    const result = Array.from(matchedLeadIds)
+    const result = Array.from(leadHasTarget)
       .map(id => leadIdMap.get(id))
       .filter((l): l is Record<string, unknown> => !!l)
       .map((l) => ({
@@ -192,6 +187,7 @@ export async function GET(request: NextRequest) {
         origem:         (l["origem_nome"] as string) || "—",
         data_cadastro:  (l["data_cad"] as string) || "—",
         score:          l["score"] ?? 0,
+        visitas_count:  leadVisitCount.get(l["idlead"] as number) ?? 1,
       }));
 
     return NextResponse.json({ leads: result, total: result.length });
