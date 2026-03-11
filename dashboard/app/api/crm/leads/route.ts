@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
+function normalizeImobiliaria(imob: unknown): string {
+  const s = String(imob || "").trim();
+  return s || "Sem imobiliária";
+}
+
+function normalizeOrigem(origem: unknown): string {
+  if (!origem) return "Não definido";
+  const o = String(origem).trim();
+  const l = o.toLowerCase();
+  if (l.includes("google") || l.includes("adword") || l.includes("g_ads") || l.includes("gads")) return "Google";
+  if (o.toUpperCase().startsWith("SITE_") || l.includes("website") || l === "site") return "Website";
+  return o;
+}
+
 function parseBrDate(dateStr: string | null): Date | null {
   if (!dateStr) return null;
   // ISO format: "2026-01-26T21:27:25" or "2026-01-26"
@@ -16,16 +30,23 @@ function parseBrDate(dateStr: string | null): Date | null {
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const empreendimento = searchParams.get("empreendimento");
-  const dateStartStr   = searchParams.get("date_start");
-  const dateEndStr     = searchParams.get("date_end");
-  const tipo           = searchParams.get("tipo") ?? "ganhos"; // "ganhos" | "reservas" | "visita_agendada" | "visita_realizada"
+  const empreendimento    = searchParams.get("empreendimento");
+  const dateStartStr      = searchParams.get("date_start");
+  const dateEndStr        = searchParams.get("date_end");
+  const tipo              = searchParams.get("tipo") ?? "ganhos";
+  const origensParam      = searchParams.get("origens");
+  const ultimaOrigemParam = searchParams.get("ultima_origem");
+  const imobiliariaParam  = searchParams.get("imobiliaria");
+
+  const filterOrigens      = origensParam      ? origensParam.split(",").filter(Boolean)      : [];
+  const filterUltimaOrigem = ultimaOrigemParam  ? ultimaOrigemParam.split(",").filter(Boolean)  : [];
+  const filterImobiliaria  = imobiliariaParam   ? imobiliariaParam.split(",").filter(Boolean)   : [];
 
   if (!empreendimento || !dateStartStr || !dateEndStr) {
     return NextResponse.json({ error: "empreendimento, date_start e date_end são obrigatórios" }, { status: 400 });
   }
 
-  const SELECT = `idlead, situacao, nome, corretor, empreendimento, empreendimento_primeiro, origem_nome, data_cad, reserva, score`;
+  const SELECT = `idlead, situacao, nome, corretor, imobiliaria, empreendimento, empreendimento_primeiro, origem_nome, origem_ultimo, data_cad, reserva, score`;
   const PAGE = 1000;
   const allLeads: Record<string, unknown>[] = [];
   let from = 0;
@@ -55,6 +76,20 @@ export async function GET(request: NextRequest) {
     // Empreendimento filter
     const emp = ((lead["empreendimento_primeiro"] || lead["empreendimento"]) as string) || "";
     if (emp.toLowerCase().trim() !== empreendimento.toLowerCase().trim()) return false;
+
+    // Internal filters
+    if (filterOrigens.length > 0) {
+      const origem = normalizeOrigem(lead["origem_nome"]);
+      if (!filterOrigens.includes(origem)) return false;
+    }
+    if (filterUltimaOrigem.length > 0) {
+      const ultimaOrigem = normalizeOrigem(lead["origem_ultimo"]);
+      if (!filterUltimaOrigem.includes(ultimaOrigem)) return false;
+    }
+    if (filterImobiliaria.length > 0) {
+      const imob = normalizeImobiliaria(lead["imobiliaria"]);
+      if (!filterImobiliaria.includes(imob)) return false;
+    }
 
     // Status filter
     const situacao = ((lead["situacao"] as string) || "").toLowerCase();

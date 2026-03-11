@@ -19,10 +19,13 @@ interface Props {
   dateStart: string;
   dateEnd: string;
   tipo: "ganhos" | "reservas" | "visita_agendada" | "visita_realizada";
+  filterOrigens?: string[];
+  filterUltimaOrigem?: string[];
+  filterImobiliaria?: string[];
   onClose: () => void;
 }
 
-export default function GanhosModal({ empreendimento, dateStart, dateEnd, tipo, onClose }: Props) {
+export default function GanhosModal({ empreendimento, dateStart, dateEnd, tipo, filterOrigens, filterUltimaOrigem, filterImobiliaria, onClose }: Props) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +37,9 @@ export default function GanhosModal({ empreendimento, dateStart, dateEnd, tipo, 
       date_end: dateEnd,
       tipo,
     });
+    if (filterOrigens?.length)      params.set("origens",     filterOrigens.join(","));
+    if (filterUltimaOrigem?.length) params.set("ultima_origem", filterUltimaOrigem.join(","));
+    if (filterImobiliaria?.length)  params.set("imobiliaria",  filterImobiliaria.join(","));
     fetch(`/api/crm/leads?${params}`)
       .then(r => r.json())
       .then(data => {
@@ -42,7 +48,7 @@ export default function GanhosModal({ empreendimento, dateStart, dateEnd, tipo, 
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, [empreendimento, dateStart, dateEnd, tipo]);
+  }, [empreendimento, dateStart, dateEnd, tipo, filterOrigens, filterUltimaOrigem, filterImobiliaria]);
 
   const title =
     tipo === "ganhos" ? "Ganhos / Vendas" :

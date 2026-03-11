@@ -697,6 +697,9 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
           dateStart={dateStart}
           dateEnd={dateEnd}
           tipo={visitaModal.tipo}
+          filterOrigens={filterOrigens}
+          filterUltimaOrigem={filterUltimaOrigem}
+          filterImobiliaria={filterImobiliaria}
           onClose={() => setVisitaModal(null)}
         />
       )}
