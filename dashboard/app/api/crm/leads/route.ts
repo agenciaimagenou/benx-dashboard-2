@@ -147,6 +147,7 @@ export async function GET(request: NextRequest) {
     if (leadIdArray2.length === 0) return NextResponse.json({ leads: [], total: 0 });
 
     // Step 2: query Visitas2 for those lead IDs (same as main CRM route)
+    // Use limit(10000) per chunk to avoid PostgREST default 1000-row cap
     const CHUNK = 500;
     const visResults = await Promise.all(
       Array.from({ length: Math.ceil(leadIdArray2.length / CHUNK) }, (_, i) =>
@@ -154,22 +155,34 @@ export async function GET(request: NextRequest) {
           .from("Visitas2")
           .select("idlead, situacao, nome_empreendimento")
           .in("idlead", leadIdArray2.slice(i * CHUNK, (i + 1) * CHUNK))
+          .limit(10000)
       )
     );
 
-    // Step 3: filter by empreendimento name + status (exactly like main CRM route)
-    const matchedLeadIds = new Set<number>();
+    // Step 3: collect all statuses per lead for this empreendimento
+    const leadSituacoes = new Map<number, Set<string>>();
     for (const r of visResults) {
       for (const v of (r.data ?? [])) {
         const emp = String(v["nome_empreendimento"] || "");
+        if (emp.toLowerCase().trim() !== empreendimento.toLowerCase().trim()) continue;
         const sit = String(v["situacao"] || "").toLowerCase().trim();
-        if (
-          emp.toLowerCase().trim() === empreendimento.toLowerCase().trim() &&
-          targetSits.includes(sit)
-        ) {
-          matchedLeadIds.add(v["idlead"] as number);
-        }
+        const id = v["idlead"] as number;
+        if (!leadSituacoes.has(id)) leadSituacoes.set(id, new Set());
+        leadSituacoes.get(id)!.add(sit);
       }
+    }
+
+    // Step 4: filter by status — for agendada, exclude leads that already have concluída
+    const realizadaSits = new Set(["concluída", "concluida"]);
+    const matchedLeadIds = new Set<number>();
+    for (const [id, sits] of leadSituacoes) {
+      const hasTarget = targetSits.some(s => sits.has(s));
+      if (!hasTarget) continue;
+      if (tipo === "visita_agendada") {
+        // Only include if no concluída entry exists (visit not yet completed)
+        if ([...sits].some(s => realizadaSits.has(s))) continue;
+      }
+      matchedLeadIds.add(id);
     }
 
     const result = Array.from(matchedLeadIds)
