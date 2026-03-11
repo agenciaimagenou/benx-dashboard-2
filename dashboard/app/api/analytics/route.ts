@@ -165,39 +165,39 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "date_start and date_end are required" }, { status: 400 });
   }
 
-  // Fetch all leads with pagination (Supabase default cap is 1000 rows)
+  // Fetch leads with parallel pagination
   const SELECT = `idlead, situacao, nome, empreendimento, empreendimento_primeiro, corretor, imobiliaria, origem_nome, origem_ultimo, data_ultima_interacao, data_ultima_alteracao, data_cad, motivo_cancelamento, descricao_motivo_cancelamento, submotivo_cancelamento, vencido`;
   const PAGE = 1000;
-  const allLeads: Record<string, unknown>[] = [];
-  let from = 0;
-  while (true) {
-    const { data: page, error } = await supabaseAdmin
-      .from("leads2")
-      .select(SELECT)
-      .gte("data_cad", `${dateStartStr}T00:00:00`)
-      .lte("data_cad", `${dateEndStr}T23:59:59`)
-      .range(from, from + PAGE - 1);
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-    if (!page || page.length === 0) break;
-    allLeads.push(...page);
-    if (page.length < PAGE) break;
-    from += PAGE;
-  }
-  const leads = allLeads;
 
-  const startDate = new Date(`${dateStartStr}T00:00:00`);
-  const endDate = new Date(`${dateEndStr}T23:59:59`);
+  const { data: firstPage, count, error: firstError } = await supabaseAdmin
+    .from("leads2")
+    .select(SELECT, { count: "exact" })
+    .gte("data_cad", `${dateStartStr}T00:00:00`)
+    .lte("data_cad", `${dateEndStr}T23:59:59`)
+    .range(0, PAGE - 1);
+
+  if (firstError) return NextResponse.json({ error: firstError.message }, { status: 500 });
+
+  const allLeads: Record<string, unknown>[] = [...(firstPage ?? [])];
+  const remainingPages = Math.max(0, Math.ceil((count ?? 0) / PAGE) - 1);
+
+  if (remainingPages > 0) {
+    const rest = await Promise.all(
+      Array.from({ length: remainingPages }, (_, i) =>
+        supabaseAdmin.from("leads2").select(SELECT)
+          .gte("data_cad", `${dateStartStr}T00:00:00`)
+          .lte("data_cad", `${dateEndStr}T23:59:59`)
+          .range((i + 1) * PAGE, (i + 2) * PAGE - 1)
+      )
+    );
+    for (const r of rest) { if (r.data) allLeads.push(...r.data); }
+  }
+
   const today = new Date();
   today.setHours(23, 59, 59, 0);
 
-  // Filter by date of first registration (same filter as CRM route)
-  const filtered = (leads || []).filter((lead) => {
-    const d = parseBrDate(lead["data_cad"] as string);
-    if (!d) return false;
-    return d >= startDate && d <= endDate;
-  });
+  // Already filtered at DB level — no in-memory re-filter needed
+  const filtered = allLeads;
 
   // ── 1. Tempo por situação ────────────────────────────────────────────────────
   const bySituacao: Record<
@@ -271,18 +271,20 @@ export async function GET(request: NextRequest) {
   const filteredLeadMap = new Map<number, Record<string, unknown>>();
   for (const l of filtered) filteredLeadMap.set(l["idlead"] as number, l);
 
-  // Fetch Visitas2 table with pagination
+  // Fetch Visitas2 only for leads in our filtered set (parallel chunks)
   const allVisitas: Record<string, unknown>[] = [];
-  let vFrom = 0;
-  while (true) {
-    const { data: vPage, error: vError } = await supabaseAdmin
-      .from("Visitas2")
-      .select(`idlead, situacao, data_conclusao`)
-      .range(vFrom, vFrom + 999);
-    if (vError || !vPage || vPage.length === 0) break;
-    allVisitas.push(...vPage);
-    if (vPage.length < 1000) break;
-    vFrom += 1000;
+  const visitLeadIds = Array.from(filteredLeadMap.keys());
+  if (visitLeadIds.length > 0) {
+    const CHUNK = 500;
+    const visResults = await Promise.all(
+      Array.from({ length: Math.ceil(visitLeadIds.length / CHUNK) }, (_, i) =>
+        supabaseAdmin
+          .from("Visitas2")
+          .select(`idlead, situacao, data_conclusao`)
+          .in("idlead", visitLeadIds.slice(i * CHUNK, (i + 1) * CHUNK))
+      )
+    );
+    for (const r of visResults) { if (r.data) allVisitas.push(...r.data); }
   }
 
   // Process visits for leads in our filtered date range

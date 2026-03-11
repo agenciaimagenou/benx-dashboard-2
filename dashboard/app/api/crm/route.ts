@@ -15,19 +15,6 @@ function normalizeOrigem(origem: unknown): string {
   return o;
 }
 
-function parseBrDate(dateStr: string | null): Date | null {
-  if (!dateStr) return null;
-  // ISO format: "2026-01-26T21:27:25" or "2026-01-26"
-  if (dateStr.includes("T") || /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    const d = new Date(dateStr);
-    return isNaN(d.getTime()) ? null : d;
-  }
-  // Brazilian format: "DD/MM/YYYY"
-  const parts = dateStr.split("/");
-  if (parts.length !== 3) return null;
-  return new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`);
-}
-
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const dateStartStr = searchParams.get("date_start");
@@ -37,38 +24,36 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "date_start and date_end are required" }, { status: 400 });
   }
 
-  // Fetch all leads with pagination (Supabase default cap is 1000 rows)
+  // Fetch leads with parallel pagination
   const SELECT = `idlead, situacao, nome, corretor, imobiliaria, data_cad, empreendimento, empreendimento_primeiro, reserva, origem_nome, origem_ultimo, score, novo, retorno`;
   const PAGE = 1000;
-  const allLeads: Record<string, unknown>[] = [];
-  let from = 0;
-  while (true) {
-    const { data: page, error } = await supabaseAdmin
-      .from("leads2")
-      .select(SELECT)
-      .gte("data_cad", `${dateStartStr}T00:00:00`)
-      .lte("data_cad", `${dateEndStr}T23:59:59`)
-      .range(from, from + PAGE - 1);
-    if (error) {
-      console.error("Supabase error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-    if (!page || page.length === 0) break;
-    allLeads.push(...page);
-    if (page.length < PAGE) break;
-    from += PAGE;
+
+  const { data: firstPage, count, error: firstError } = await supabaseAdmin
+    .from("leads2")
+    .select(SELECT, { count: "exact" })
+    .gte("data_cad", `${dateStartStr}T00:00:00`)
+    .lte("data_cad", `${dateEndStr}T23:59:59`)
+    .range(0, PAGE - 1);
+
+  if (firstError) return NextResponse.json({ error: firstError.message }, { status: 500 });
+
+  const allLeads: Record<string, unknown>[] = [...(firstPage ?? [])];
+  const remainingPages = Math.max(0, Math.ceil((count ?? 0) / PAGE) - 1);
+
+  if (remainingPages > 0) {
+    const rest = await Promise.all(
+      Array.from({ length: remainingPages }, (_, i) =>
+        supabaseAdmin.from("leads2").select(SELECT)
+          .gte("data_cad", `${dateStartStr}T00:00:00`)
+          .lte("data_cad", `${dateEndStr}T23:59:59`)
+          .range((i + 1) * PAGE, (i + 2) * PAGE - 1)
+      )
+    );
+    for (const r of rest) { if (r.data) allLeads.push(...r.data); }
   }
-  const leads = allLeads;
 
-  const startDate = new Date(`${dateStartStr}T00:00:00`);
-  const endDate = new Date(`${dateEndStr}T23:59:59`);
-
-  // Filter by date range
-  const filtered = (leads || []).filter((lead) => {
-    const d = parseBrDate(lead["data_cad"] as string);
-    if (!d) return false;
-    return d >= startDate && d <= endDate;
-  });
+  // Already filtered at DB level — no in-memory re-filter needed
+  const filtered = allLeads;
 
   interface LeadGanhoEntry {
     id: number;
@@ -274,17 +259,19 @@ export async function GET(request: NextRequest) {
 
   // ── Override Visita Agendada / Visita Realizada from Visitas2 table ─────────
   const filteredLeadIds = new Set(filtered.map((l) => l["idlead"] as number));
+  const leadIdArray = Array.from(filteredLeadIds);
   const allVisitas: Record<string, unknown>[] = [];
-  let vFrom = 0;
-  while (true) {
-    const { data: vPage, error: vError } = await supabaseAdmin
-      .from("Visitas2")
-      .select("idlead, situacao, nome_empreendimento")
-      .range(vFrom, vFrom + 999);
-    if (vError || !vPage || vPage.length === 0) break;
-    allVisitas.push(...vPage);
-    if (vPage.length < 1000) break;
-    vFrom += 1000;
+  if (leadIdArray.length > 0) {
+    const CHUNK = 500;
+    const visResults = await Promise.all(
+      Array.from({ length: Math.ceil(leadIdArray.length / CHUNK) }, (_, i) =>
+        supabaseAdmin
+          .from("Visitas2")
+          .select("idlead, situacao, nome_empreendimento")
+          .in("idlead", leadIdArray.slice(i * CHUNK, (i + 1) * CHUNK))
+      )
+    );
+    for (const r of visResults) { if (r.data) allVisitas.push(...r.data); }
   }
 
   const visitasAgendadasByEmp: Record<string, number> = {};
