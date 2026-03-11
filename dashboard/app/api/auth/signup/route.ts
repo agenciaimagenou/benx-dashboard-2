@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       type: "recovery",
       email: normalizedEmail,
       options: {
-        redirectTo: `${origin}/auth/confirmar?next=%2Fredefinir-senha%3Fnovo%3Dtrue`,
+        redirectTo: `${origin}/auth/callback?next=%2Fredefinir-senha%3Fnovo%3Dtrue`,
       },
     });
 

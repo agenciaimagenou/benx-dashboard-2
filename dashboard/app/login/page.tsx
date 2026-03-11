@@ -38,6 +38,17 @@ function LoginContent() {
     if (searchParams.get("sessao_expirada") === "true") {
       setError("Sua sessão expirou por inatividade. Faça login novamente.");
     }
+
+    // Tratar erros do Supabase no hash da URL (ex: link de e-mail expirado)
+    const hash = window.location.hash.slice(1);
+    if (hash) {
+      const hashParams = new URLSearchParams(hash);
+      if (hashParams.get("error_code") || hashParams.get("error")) {
+        setError("O link expirou ou já foi usado. Solicite um novo abaixo.");
+        setMode("forgot");
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      }
+    }
   }, [searchParams]);
 
   function switchMode(m: Mode) {
