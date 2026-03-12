@@ -100,7 +100,7 @@ export default function GoogleAdsSection({ data, loading }: Props) {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                {["Conta", "Investimento", "Impressões", "Cliques", "CTR", "CPC", "CPM", "Conversões", "CPL"].map(h => (
+                {["Conta", "Valor Gasto", "Impressões", "Cliques", "CTR", "CPC", "CPM", "Conversões", "CPL"].map(h => (
                   <th
                     key={h}
                     className={`px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap ${
