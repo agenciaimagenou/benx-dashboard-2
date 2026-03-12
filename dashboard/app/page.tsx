@@ -283,6 +283,7 @@ export default function Dashboard() {
               metaData={filteredMetaData}
               crmData={crmData}
               mergedData={mergedData}
+              googleData={googleData}
               loading={loading}
             />
           )}

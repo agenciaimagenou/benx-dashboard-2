@@ -1,11 +1,12 @@
 "use client";
 
-import { DollarSign, Users, MousePointerClick, TrendingUp, Eye, Target, Award } from "lucide-react";
+import { DollarSign, Users, MousePointerClick, TrendingUp, Eye, Target, Award, Search, Zap } from "lucide-react";
 import KPICard from "@/components/KPICard";
 import SpendLeadsChart from "@/components/SpendLeadsChart";
 import FunnelChart from "@/components/FunnelChart";
 import { MergedData, MetaSummaryByAccount } from "@/types";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/utils";
+import { GoogleAdsAccount } from "@/components/sections/GoogleAdsSection";
 
 interface CRMSummary {
   total_leads: number;
@@ -17,10 +18,11 @@ interface Props {
   metaData: MetaSummaryByAccount[];
   crmData: CRMSummary | null;
   mergedData: MergedData[];
+  googleData: GoogleAdsAccount[] | null;
   loading: boolean;
 }
 
-export default function OverviewSection({ metaData, crmData, mergedData, loading }: Props) {
+export default function OverviewSection({ metaData, crmData, mergedData, googleData, loading }: Props) {
   const totalSpend = metaData.reduce((s, m) => s + m.total_spend, 0);
   const totalMetaLeads = metaData.reduce((s, m) => s + m.total_leads, 0);
   const totalImpressions = metaData.reduce((s, m) => s + m.total_impressions, 0);
@@ -28,6 +30,20 @@ export default function OverviewSection({ metaData, crmData, mergedData, loading
   const avgCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
   const avgCpl = totalMetaLeads > 0 ? totalSpend / totalMetaLeads : 0;
   const totalCrmLeads = crmData?.total_leads ?? 0;
+
+  // Google Ads totals
+  const gTotals = (googleData ?? []).reduce(
+    (acc, a) => ({
+      spend:       acc.spend       + a.spend,
+      impressions: acc.impressions + a.impressions,
+      clicks:      acc.clicks      + a.clicks,
+      conversions: acc.conversions + a.conversions,
+    }),
+    { spend: 0, impressions: 0, clicks: 0, conversions: 0 }
+  );
+  const gCtr = gTotals.impressions > 0 ? (gTotals.clicks / gTotals.impressions) * 100 : 0;
+  const gCpl = gTotals.conversions > 0 ? gTotals.spend / gTotals.conversions : 0;
+  const gCpc = gTotals.clicks > 0 ? gTotals.spend / gTotals.clicks : 0;
   const totalGanhos = crmData?.por_empreendimento.reduce((s, e) => s + e.ganhos, 0) ?? 0;
   const totalReservas = crmData?.por_empreendimento.reduce((s, e) => s + e.reserva, 0) ?? 0;
 
@@ -55,6 +71,33 @@ export default function OverviewSection({ metaData, crmData, mergedData, loading
             icon={Target} color="red" loading={loading} />
           <KPICard title="CTR Médio" value={formatPercent(avgCtr)}
             subtitle="Click-through rate"
+            icon={TrendingUp} color="green" loading={loading} />
+        </div>
+      </div>
+
+      {/* Google Ads KPIs */}
+      <div>
+        <p className="text-xs font-semibold text-green-700 uppercase tracking-widest mb-3 flex items-center gap-2">
+          <span className="w-5 h-5 bg-green-100 rounded-md flex items-center justify-center">
+            <Search className="w-3 h-3" />
+          </span>
+          Google Ads
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
+          <KPICard title="Valor Gasto" value={formatCurrency(gTotals.spend)}
+            subtitle={`${(googleData ?? []).length} contas ativas`}
+            icon={DollarSign} color="blue" loading={loading} />
+          <KPICard title="Impressões" value={formatNumber(gTotals.impressions)}
+            icon={Eye} color="purple" loading={loading} />
+          <KPICard title="Cliques" value={formatNumber(gTotals.clicks)}
+            subtitle={`CTR ${gCtr.toFixed(2)}%`}
+            icon={MousePointerClick} color="teal" loading={loading} />
+          <KPICard title="Conversões" value={formatNumber(Math.round(gTotals.conversions))}
+            icon={Zap} color="orange" loading={loading} />
+          <KPICard title="CPL" value={formatCurrency(gCpl)}
+            subtitle="Custo por conversão"
+            icon={Target} color="red" loading={loading} />
+          <KPICard title="CPC Médio" value={formatCurrency(gCpc)}
             icon={TrendingUp} color="green" loading={loading} />
         </div>
       </div>
