@@ -90,7 +90,8 @@ interface Props {
 function computeCorretores(leads: StuckLead[]): CorretorParado[] {
   const map: Record<string, { dias: number[]; por_situacao: Record<string, number> }> = {};
   for (const l of leads) {
-    const c = l.corretor?.split(" - ")[0]?.trim() || "Não atribuído";
+    const c = l.corretor?.split(" - ")[0]?.trim();
+    if (!c) continue;
     if (!map[c]) map[c] = { dias: [], por_situacao: {} };
     map[c].dias.push(l.dias_parado);
     const sit = l.situacao || "Não definido";
