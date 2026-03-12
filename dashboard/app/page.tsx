@@ -11,6 +11,7 @@ import OverviewSection from "@/components/sections/OverviewSection";
 import MetaAdsSection from "@/components/sections/MetaAdsSection";
 import CRMSection from "@/components/sections/CRMSection";
 import AnalyticsSection from "@/components/sections/AnalyticsSection";
+import GoogleAdsSection, { GoogleAdsAccount } from "@/components/sections/GoogleAdsSection";
 
 import { DateRange, MetaSummaryByAccount, MergedData } from "@/types";
 import { getDefaultDateRange, toISODate, findBestMatch } from "@/lib/utils";
@@ -41,6 +42,12 @@ interface CRMResponse {
   ultimas_origens_list: string[];
   total_novo: number;
   total_retorno: number;
+  visitas_agendadas_por_origem_emp:         Record<string, Record<string, number>>;
+  visitas_realizadas_por_origem_emp:        Record<string, Record<string, number>>;
+  visitas_agendadas_por_ultima_origem_emp:  Record<string, Record<string, number>>;
+  visitas_realizadas_por_ultima_origem_emp: Record<string, Record<string, number>>;
+  visitas_agendadas_por_imob_emp:           Record<string, Record<string, number>>;
+  visitas_realizadas_por_imob_emp:          Record<string, Record<string, number>>;
   por_empreendimento: Array<{
     empreendimento: string;
     total_leads: number;
@@ -110,6 +117,7 @@ interface AnalyticsData {
 const PAGE_TITLES: Record<PageId, string> = {
   overview:  "Visão Geral",
   meta:      "Meta Ads",
+  google:    "Google Ads",
   crm:       "CRM / Leads",
   analytics: "Operacional",
 };
@@ -125,6 +133,7 @@ export default function Dashboard() {
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [crmData, setCrmData]         = useState<CRMResponse | null>(null);
   const [analyticsData, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [googleData, setGoogleData]   = useState<GoogleAdsAccount[] | null>(null);
   const [stuckThreshold, setStuck]    = useState(3);
   const [loading, setLoading]         = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -134,19 +143,22 @@ export default function Dashboard() {
     const start = toISODate(range.start);
     const end   = toISODate(range.end);
     try {
-      const [mr, cr, ar] = await Promise.all([
+      const [mr, cr, ar, gr] = await Promise.all([
         fetch(`/api/meta?date_start=${start}&date_end=${end}`, { cache: "no-store" }),
         fetch(`/api/crm?date_start=${start}&date_end=${end}`, { cache: "no-store" }),
         fetch(`/api/analytics?date_start=${start}&date_end=${end}&stuck_days=${threshold}`, { cache: "no-store" }),
+        fetch(`/api/google-ads?date_start=${start}&date_end=${end}`, { cache: "no-store" }),
       ]);
-      const [meta, crm, analytics] = await Promise.all([
+      const [meta, crm, analytics, google] = await Promise.all([
         mr.ok ? mr.json() : [],
         cr.ok ? cr.json() : null,
         ar.ok ? ar.json() : null,
+        gr.ok ? gr.json() : null,
       ]);
       setMetaData(meta);
       setCrmData(crm);
       setAnalytics(analytics);
+      setGoogleData(google);
       setLastUpdated(new Date());
     } catch (e) {
       console.error(e);
@@ -291,6 +303,12 @@ export default function Dashboard() {
               accountCrmKeys={selectedAccounts.length > 0 ? filteredMetaData.map(m => m.crm_key) : null}
               dateStart={toISODate(dateRange.start)}
               dateEnd={toISODate(dateRange.end)}
+            />
+          )}
+          {activePage === "google" && (
+            <GoogleAdsSection
+              data={googleData}
+              loading={loading}
             />
           )}
           {activePage === "analytics" && (

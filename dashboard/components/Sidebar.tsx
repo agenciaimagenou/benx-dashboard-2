@@ -11,12 +11,13 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  Search,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
 import { useRouter } from "next/navigation";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 
-export type PageId = "overview" | "meta" | "crm" | "analytics";
+export type PageId = "overview" | "meta" | "google" | "crm" | "analytics";
 
 interface NavItem {
   id: PageId;
@@ -28,6 +29,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { id: "overview",   label: "Visão Geral",      icon: LayoutDashboard },
   { id: "meta",       label: "Meta Ads",          icon: TrendingUp },
+  { id: "google",     label: "Google Ads",        icon: Search },
   { id: "crm",        label: "CRM / Leads",       icon: Users },
   { id: "analytics",  label: "Operacional",       icon: Clock },
 ];
