@@ -191,9 +191,9 @@ export default function StuckLeadsTable({ leads, loading, threshold = 3, onThres
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
-                {current.map((lead) => (
-                  <tr key={lead.id} className="hover:bg-gray-50/50 transition-colors">
+              <tbody>
+                {current.map((lead, i) => (
+                  <tr key={lead.id} className={cn("transition-colors hover:bg-blue-50/40", i % 2 === 0 ? "bg-white" : "bg-gray-100")}>
                     <td className="px-4 py-3 text-right text-xs font-mono text-gray-400 whitespace-nowrap">{lead.id}</td>
                     <td className="px-4 py-3 font-medium text-gray-800 max-w-[140px] truncate">{lead.nome}</td>
                     <td className="px-4 py-3 text-gray-600 max-w-[140px] truncate">{lead.empreendimento}</td>
