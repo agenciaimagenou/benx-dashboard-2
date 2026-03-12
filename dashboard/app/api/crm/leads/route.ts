@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
     const visResults = await Promise.all(
       Array.from({ length: Math.ceil(leadIdArray2.length / CHUNK) }, (_, i) =>
         supabaseAdmin
-          .from("Visitas2")
+          .from("visitas")
           .select("idlead, situacao, nome_empreendimento")
           .in("idlead", leadIdArray2.slice(i * CHUNK, (i + 1) * CHUNK))
           .limit(10000)
