@@ -166,7 +166,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Fetch leads with parallel pagination
-  const SELECT = `idlead, situacao, nome, empreendimento, empreendimento_primeiro, corretor, imobiliaria, origem_nome, origem_ultimo, data_ultima_interacao, data_ultima_alteracao, data_cad, motivo_cancelamento, descricao_motivo_cancelamento, submotivo_cancelamento, vencido`;
+  const SELECT = `idlead, situacao, nome, empreendimento, empreendimento_primeiro, corretor, corretor_ultimo, imobiliaria, origem_nome, origem_ultimo, data_ultima_interacao, data_ultima_alteracao, data_cad, motivo_cancelamento, descricao_motivo_cancelamento, submotivo_cancelamento, vencido`;
   const PAGE = 1000;
 
   const { data: firstPage, count, error: firstError } = await supabaseAdmin
@@ -385,7 +385,7 @@ export async function GET(request: NextRequest) {
     descarteMap[key].leads.push({
       id: lead["idlead"] as number,
       nome: (lead["nome"] || "—") as string,
-      corretor: (lead["corretor"] || "—") as string,
+      corretor: (lead["corretor_ultimo"] || lead["corretor"] || "—") as string,
       empreendimento: emp,
       imobiliaria: normalizeImobiliaria(lead["imobiliaria"]),
       origem: normalizeOrigem(lead["origem_nome"]),
