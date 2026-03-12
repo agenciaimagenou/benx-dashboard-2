@@ -49,8 +49,9 @@ const CustomXAxisTick = ({ x, y, payload }: any) => (
       y={0}
       dy={4}
       textAnchor="end"
-      fill="#6b7280"
-      fontSize={9}
+      fill="#4b5563"
+      fontSize={11}
+      fontWeight={500}
       transform="rotate(-45)"
     >
       {payload.value}
@@ -91,7 +92,7 @@ export default function SpendLeadsChart({ data, googleData, loading }: Props) {
     const gKey   = META_TO_GOOGLE[rawKey] ?? rawKey;
     const g = googleMap.get(gKey) ?? { spend: 0, conversions: 0 };
     return {
-      name: d.empreendimento.replace("Viva Benx ", "VB ").replace("Benx | ", "").substring(0, 18),
+      name: d.empreendimento.replace("Viva Benx ", "VB ").replace("Benx | ", "").substring(0, 24),
       meta_spend:        Math.round(d.meta_spend),
       google_spend:      Math.round(g.spend),
       meta_leads:        d.meta_leads,
@@ -104,14 +105,14 @@ export default function SpendLeadsChart({ data, googleData, loading }: Props) {
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
       <h3 className="font-semibold text-gray-800 mb-1">Investimento x Leads por Empreendimento</h3>
       <p className="text-xs text-gray-500 mb-5">Top 12 por investimento</p>
-      <ResponsiveContainer width="100%" height={340}>
-        <BarChart data={chartData} margin={{ top: 0, right: 10, left: 0, bottom: 90 }}>
+      <ResponsiveContainer width="100%" height={400}>
+        <BarChart data={chartData} margin={{ top: 0, right: 10, left: 0, bottom: 110 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
           <XAxis
             dataKey="name"
             tick={<CustomXAxisTick />}
             interval={0}
-            height={90}
+            height={110}
           />
           <YAxis
             yAxisId="left"
