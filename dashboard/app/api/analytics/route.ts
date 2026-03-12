@@ -170,7 +170,7 @@ export async function GET(request: NextRequest) {
   const PAGE = 1000;
 
   const { data: firstPage, count, error: firstError } = await supabaseAdmin
-    .from("leads2")
+    .from("leads")
     .select(SELECT, { count: "exact" })
     .gte("data_cad", `${dateStartStr}T00:00:00`)
     .lte("data_cad", `${dateEndStr}T23:59:59`)
@@ -184,7 +184,7 @@ export async function GET(request: NextRequest) {
   if (remainingPages > 0) {
     const rest = await Promise.all(
       Array.from({ length: remainingPages }, (_, i) =>
-        supabaseAdmin.from("leads2").select(SELECT)
+        supabaseAdmin.from("leads").select(SELECT)
           .gte("data_cad", `${dateStartStr}T00:00:00`)
           .lte("data_cad", `${dateEndStr}T23:59:59`)
           .range((i + 1) * PAGE, (i + 2) * PAGE - 1)

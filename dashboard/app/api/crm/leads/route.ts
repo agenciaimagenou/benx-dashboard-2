@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
   let from = 0;
   while (true) {
     const { data: page, error } = await supabaseAdmin
-      .from("leads2")
+      .from("leads")
       .select(SELECT)
       .or(`empreendimento_primeiro.ilike.${empreendimento},empreendimento.ilike.${empreendimento}`)
       .gte("data_cad", `${dateStartStr}T00:00:00`)
@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
     let from2 = 0;
     while (true) {
       const { data: page, error } = await supabaseAdmin
-        .from("leads2")
+        .from("leads")
         .select(SELECT_ALL)
         .gte("data_cad", `${dateStartStr}T00:00:00`)
         .lte("data_cad", `${dateEndStr}T23:59:59`)
