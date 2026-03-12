@@ -12,11 +12,15 @@ import {
 } from "recharts";
 import { MergedData } from "@/types";
 import { formatCurrency } from "@/lib/utils";
+import { GoogleAdsAccount } from "@/components/sections/GoogleAdsSection";
 
 interface Props {
   data: MergedData[];
+  googleData?: GoogleAdsAccount[] | null;
   loading?: boolean;
 }
+
+const SPEND_KEYS = new Set(["meta_spend", "google_spend"]);
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -28,7 +32,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
             <div className="w-2.5 h-2.5 rounded-full" style={{ background: p.fill }} />
             <span className="text-gray-600">{p.name}:</span>
             <span className="font-medium text-gray-800">
-              {p.dataKey === "meta_spend" ? formatCurrency(p.value) : p.value}
+              {SPEND_KEYS.has(p.dataKey) ? formatCurrency(p.value) : p.value}
             </span>
           </div>
         ))}
@@ -54,7 +58,7 @@ const CustomXAxisTick = ({ x, y, payload }: any) => (
   </g>
 );
 
-export default function SpendLeadsChart({ data, loading }: Props) {
+export default function SpendLeadsChart({ data, googleData, loading }: Props) {
   if (loading) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
@@ -64,16 +68,28 @@ export default function SpendLeadsChart({ data, loading }: Props) {
     );
   }
 
+  // Build Google Ads lookup by account_name (normalized)
+  const googleMap = new Map<string, { spend: number; conversions: number }>();
+  for (const g of googleData ?? []) {
+    googleMap.set(g.account_name.toLowerCase().trim(), { spend: g.spend, conversions: g.conversions });
+  }
+
   const sorted = [...data]
     .sort((a, b) => b.meta_spend - a.meta_spend)
     .slice(0, 12);
 
-  const chartData = sorted.map((d) => ({
-    name: d.empreendimento.replace("Viva Benx ", "VB ").replace("Benx | ", "").substring(0, 18),
-    meta_spend: Math.round(d.meta_spend),
-    meta_leads: d.meta_leads,
-    crm_leads: d.crm_leads,
-  }));
+  const chartData = sorted.map((d) => {
+    const gKey = d.ad_account_name.toLowerCase().trim();
+    const g = googleMap.get(gKey) ?? { spend: 0, conversions: 0 };
+    return {
+      name: d.empreendimento.replace("Viva Benx ", "VB ").replace("Benx | ", "").substring(0, 18),
+      meta_spend:        Math.round(d.meta_spend),
+      google_spend:      Math.round(g.spend),
+      meta_leads:        d.meta_leads,
+      crm_leads:         d.crm_leads,
+      google_conversions: Math.round(g.conversions),
+    };
+  });
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
@@ -105,9 +121,11 @@ export default function SpendLeadsChart({ data, loading }: Props) {
             wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
             formatter={(value) => value}
           />
-          <Bar yAxisId="left" dataKey="meta_spend" fill="#3b82f6" name="Investimento (R$)" radius={[4, 4, 0, 0]} />
-          <Bar yAxisId="right" dataKey="meta_leads" fill="#8b5cf6" name="Leads Meta" radius={[4, 4, 0, 0]} />
-          <Bar yAxisId="right" dataKey="crm_leads" fill="#10b981" name="Leads CRM" radius={[4, 4, 0, 0]} />
+          <Bar yAxisId="left"  dataKey="meta_spend"         fill="#3b82f6" name="Investimento Meta (R$)"   radius={[4, 4, 0, 0]} />
+          <Bar yAxisId="left"  dataKey="google_spend"        fill="#f59e0b" name="Investimento Google (R$)" radius={[4, 4, 0, 0]} />
+          <Bar yAxisId="right" dataKey="crm_leads"           fill="#10b981" name="Leads CRM"                radius={[4, 4, 0, 0]} />
+          <Bar yAxisId="right" dataKey="meta_leads"          fill="#8b5cf6" name="Leads Meta"               radius={[4, 4, 0, 0]} />
+          <Bar yAxisId="right" dataKey="google_conversions"  fill="#f97316" name="Conversões Google"        radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>
