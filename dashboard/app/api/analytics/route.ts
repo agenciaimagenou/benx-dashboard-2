@@ -249,7 +249,7 @@ export async function GET(request: NextRequest) {
         nome: lead["nome"] || "—",
         situacao: sit,
         empreendimento: (lead["empreendimento_primeiro"] || lead["empreendimento"] || "—") as string,
-        corretor: lead["corretor"] || "—",
+        corretor: (lead["corretor_ultimo"] || lead["corretor"] || "") as string,
         imobiliaria: normalizeImobiliaria(lead["imobiliaria"]),
         origem: normalizeOrigem(lead["origem_nome"]),
         ultima_origem: normalizeOrigem(lead["origem_ultimo"]),
