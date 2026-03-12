@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Eye, MousePointerClick, Target, TrendingUp, Zap } from "lucide-react";
 import { formatCurrency, formatNumber } from "@/lib/utils";
+import KPICard from "@/components/KPICard";
 
 export interface GoogleAdsAccount {
   account_id:   string;
@@ -32,26 +33,19 @@ interface Props {
   loading: boolean;
 }
 
-function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-      <p className="text-xs text-gray-500 mb-1">{label}</p>
-      <p className="text-2xl font-bold text-gray-800">{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
-    </div>
-  );
-}
-
 export default function GoogleAdsSection({ data, loading }: Props) {
   if (loading) {
     return (
-      <div className="space-y-4">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 animate-pulse">
-            <div className="h-4 bg-gray-200 rounded w-48 mb-3" />
-            <div className="h-8 bg-gray-100 rounded w-full" />
-          </div>
-        ))}
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          {[...Array(5)].map((_, i) => (
+            <KPICard key={i} title="" value="" icon={Eye} loading={true} />
+          ))}
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 animate-pulse">
+          <div className="h-4 bg-gray-200 rounded w-48 mb-3" />
+          <div className="h-8 bg-gray-100 rounded w-full" />
+        </div>
       </div>
     );
   }
@@ -82,11 +76,19 @@ export default function GoogleAdsSection({ data, loading }: Props) {
     <div className="space-y-6">
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <StatCard label="Impressões"    value={formatNumber(totals.impressions)}     sub={`${data.length} contas ativas`} />
-        <StatCard label="Cliques"       value={formatNumber(totals.clicks)}          sub={`CTR ${totalCtr.toFixed(2)}%`} />
-        <StatCard label="Conversões"    value={formatNumber(Math.round(totals.conversions))} />
-        <StatCard label="CPL"           value={formatCurrency(totalCpl)}             sub="Custo por conversão" />
-        <StatCard label="CPC Médio"     value={formatCurrency(totalCpc)}             />
+        <KPICard title="Impressões"  value={formatNumber(totals.impressions)}
+          subtitle={`${data.length} contas ativas`}
+          icon={Eye} color="purple" loading={loading} />
+        <KPICard title="Cliques"     value={formatNumber(totals.clicks)}
+          subtitle={`CTR ${totalCtr.toFixed(2)}%`}
+          icon={MousePointerClick} color="teal" loading={loading} />
+        <KPICard title="Conversões"  value={formatNumber(Math.round(totals.conversions))}
+          icon={Zap} color="orange" loading={loading} />
+        <KPICard title="CPL"         value={formatCurrency(totalCpl)}
+          subtitle="Custo por conversão"
+          icon={Target} color="red" loading={loading} />
+        <KPICard title="CPC Médio"   value={formatCurrency(totalCpc)}
+          icon={TrendingUp} color="green" loading={loading} />
       </div>
 
       {/* Accounts table */}
