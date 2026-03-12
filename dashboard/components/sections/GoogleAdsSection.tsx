@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, MousePointerClick, Target, TrendingUp, Zap } from "lucide-react";
+import { DollarSign, Eye, MousePointerClick, Target, TrendingUp, Zap } from "lucide-react";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import KPICard from "@/components/KPICard";
 
@@ -37,8 +37,8 @@ export default function GoogleAdsSection({ data, loading }: Props) {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          {[...Array(5)].map((_, i) => (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          {[...Array(6)].map((_, i) => (
             <KPICard key={i} title="" value="" icon={Eye} loading={true} />
           ))}
         </div>
@@ -75,9 +75,11 @@ export default function GoogleAdsSection({ data, loading }: Props) {
   return (
     <div className="space-y-6">
       {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <KPICard title="Impressões"  value={formatNumber(totals.impressions)}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <KPICard title="Valor Gasto" value={formatCurrency(totals.spend)}
           subtitle={`${data.length} contas ativas`}
+          icon={DollarSign} color="blue" loading={loading} />
+        <KPICard title="Impressões"  value={formatNumber(totals.impressions)}
           icon={Eye} color="purple" loading={loading} />
         <KPICard title="Cliques"     value={formatNumber(totals.clicks)}
           subtitle={`CTR ${totalCtr.toFixed(2)}%`}
