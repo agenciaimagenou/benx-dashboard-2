@@ -68,6 +68,14 @@ export default function SpendLeadsChart({ data, googleData, loading }: Props) {
     );
   }
 
+  // Explicit mapping for Meta → Google name mismatches
+  const META_TO_GOOGLE: Record<string, string> = {
+    "benx | 1800 oscar":       "benx | 1800 oscar pinheiros",
+    "viva benx | pompeia":     "viva benx | pompéia",
+    "benx | j329":             "benx | j329 itaim",
+    "lisbo pinheiros":         "benx | lisbô pinheiros",
+  };
+
   // Build Google Ads lookup by account_name (normalized)
   const googleMap = new Map<string, { spend: number; conversions: number }>();
   for (const g of googleData ?? []) {
@@ -79,7 +87,8 @@ export default function SpendLeadsChart({ data, googleData, loading }: Props) {
     .slice(0, 12);
 
   const chartData = sorted.map((d) => {
-    const gKey = d.ad_account_name.toLowerCase().trim();
+    const rawKey = d.ad_account_name.toLowerCase().trim();
+    const gKey   = META_TO_GOOGLE[rawKey] ?? rawKey;
     const g = googleMap.get(gKey) ?? { spend: 0, conversions: 0 };
     return {
       name: d.empreendimento.replace("Viva Benx ", "VB ").replace("Benx | ", "").substring(0, 18),
