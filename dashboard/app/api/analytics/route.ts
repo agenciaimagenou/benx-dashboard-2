@@ -349,7 +349,8 @@ export async function GET(request: NextRequest) {
   // ── Corretores com mais leads parados ────────────────────────────────────────
   const corretorMap: Record<string, { dias: number[]; por_situacao: Record<string, number> }> = {};
   for (const l of leadsParados) {
-    const corretor = l.corretor?.split(" - ")[0]?.trim() || "Não atribuído";
+    const corretor = l.corretor?.split(" - ")[0]?.trim();
+    if (!corretor || corretor === "—") continue;
     if (!corretorMap[corretor]) corretorMap[corretor] = { dias: [], por_situacao: {} };
     corretorMap[corretor].dias.push(l.dias_parado);
     const sit = l.situacao || "Não definido";
