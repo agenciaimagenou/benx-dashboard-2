@@ -134,13 +134,13 @@ export default function MergedTable({ data, loading, dateStart = "", dateEnd = "
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody>
             {sorted.map((row, i) => (
               <tr
                 key={row.empreendimento}
                 className={cn(
-                  "hover:bg-gray-50/50 transition-colors",
-                  i % 2 === 0 ? "" : "bg-gray-50/20"
+                  "transition-colors hover:bg-blue-50/40",
+                  i % 2 === 0 ? "bg-white" : "bg-gray-100"
                 )}
               >
                 {COLUMNS.map((col) => {
