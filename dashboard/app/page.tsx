@@ -179,6 +179,27 @@ export default function Dashboard() {
 
   const accountOptions = META_ACCOUNTS.map(a => a.name);
 
+  // Filtered CRM summary for Visão Geral (por_situacao, total_leads, por_empreendimento)
+  const filteredCrmSummary = (() => {
+    if (selectedAccounts.length === 0 || !crmData) return crmData;
+    const crmKeys = new Set(filteredMetaData.map(m => m.crm_key.toLowerCase().trim()));
+    const filtered = crmData.por_empreendimento.filter(e =>
+      crmKeys.has(e.empreendimento.toLowerCase().trim())
+    );
+    const por_situacao = filtered.reduce((acc, e) => {
+      for (const [sit, count] of Object.entries(e.por_situacao)) {
+        acc[sit] = (acc[sit] || 0) + (count as number);
+      }
+      return acc;
+    }, {} as Record<string, number>);
+    return {
+      ...crmData,
+      total_leads: filtered.reduce((s, e) => s + e.total_leads, 0),
+      por_empreendimento: filtered,
+      por_situacao,
+    };
+  })();
+
   // Filter Google Ads data by selected Meta accounts (with name mapping)
   const filteredGoogleData = selectedAccounts.length === 0
     ? googleData
@@ -296,7 +317,7 @@ export default function Dashboard() {
           {activePage === "overview" && (
             <OverviewSection
               metaData={filteredMetaData}
-              crmData={crmData}
+              crmData={filteredCrmSummary}
               mergedData={mergedData}
               googleData={filteredGoogleData}
               loading={loading}
