@@ -358,9 +358,7 @@ export default function Dashboard() {
               crmPorOrigem={crmData?.por_origem ?? null}
               crmPorOrigemEmp={crmData?.por_origem_emp ?? null}
               crmPorImobiliariaEmp={crmData?.por_imobiliaria_emp ?? null}
-              crmPorUltimaOrigemEmp={crmData?.por_ultima_origem_emp ?? null}
               crmPorOrigemImobiliaria={crmData?.por_origem_imobiliaria ?? null}
-              crmPorUltimaOrigemImobiliaria={crmData?.por_ultima_origem_imobiliaria ?? null}
               accountCrmKeys={selectedAccounts.length > 0 ? filteredMetaData.map(m => m.crm_key) : null}
             />
           )}

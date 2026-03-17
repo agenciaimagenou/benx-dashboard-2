@@ -81,9 +81,7 @@ interface Props {
   crmPorOrigem?: Record<string, number> | null;
   crmPorOrigemEmp?: Record<string, Record<string, number>> | null;
   crmPorImobiliariaEmp?: Record<string, Record<string, number>> | null;
-  crmPorUltimaOrigemEmp?: Record<string, Record<string, number>> | null;
   crmPorOrigemImobiliaria?: Record<string, Record<string, number>> | null;
-  crmPorUltimaOrigemImobiliaria?: Record<string, Record<string, number>> | null;
   accountCrmKeys?: string[] | null;
 }
 
@@ -109,17 +107,14 @@ function computeCorretores(leads: StuckLead[]): CorretorParado[] {
     .slice(0, 25);
 }
 
-export default function AnalyticsSection({ data, loading, stuckThreshold, onThresholdChange, totalLeadsCrm, crmPorOrigem, crmPorOrigemEmp, crmPorImobiliariaEmp, crmPorUltimaOrigemEmp, crmPorOrigemImobiliaria, crmPorUltimaOrigemImobiliaria, accountCrmKeys }: Props) {
+export default function AnalyticsSection({ data, loading, stuckThreshold, onThresholdChange, totalLeadsCrm, crmPorOrigem, crmPorOrigemEmp, crmPorImobiliariaEmp, crmPorOrigemImobiliaria, accountCrmKeys }: Props) {
   const [filterOrigens, setFilterOrigens] = useState<string[]>([]);
-  const [filterUltimaOrigem, setFilterUltimaOrigem] = useState<string[]>([]);
   const [filterImobiliaria, setFilterImobiliaria] = useState<string[]>([]);
 
   const origemOptions = useMemo(() => {
     if (!data) return [];
     return Array.from(new Set(data.leads_parados.map(l => l.origem || "Não definido"))).sort();
   }, [data]);
-
-  const ultimaOrigemOptions = data?.ultimas_origens_list ?? [];
 
   const imobiliariasOptions = data?.imobiliarias_list ?? [];
 
@@ -128,11 +123,10 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
     return data.leads_parados.filter(l => {
       if (accountCrmKeys && !matchesAccount(l.empreendimento, accountCrmKeys)) return false;
       if (filterOrigens.length > 0 && !filterOrigens.includes(l.origem || "Não definido")) return false;
-      if (filterUltimaOrigem.length > 0 && !filterUltimaOrigem.includes(l.ultima_origem || "Não definido")) return false;
       if (filterImobiliaria.length && !filterImobiliaria.includes(l.imobiliaria)) return false;
       return true;
     });
-  }, [data, accountCrmKeys, filterOrigens, filterUltimaOrigem, filterImobiliaria]);
+  }, [data, accountCrmKeys, filterOrigens, filterImobiliaria]);
 
   const filteredCorretores = useMemo(
     () => computeCorretores(filteredLeads),
@@ -141,7 +135,7 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
 
   // Recompute tempo_por_situacao from filteredLeads when any filter is active
   const filteredTempoPorSituacao = useMemo(() => {
-    const anyFilter = !!accountCrmKeys || filterOrigens.length > 0 || filterUltimaOrigem.length > 0 || !!filterImobiliaria.length;
+    const anyFilter = !!accountCrmKeys || filterOrigens.length > 0 || !!filterImobiliaria.length;
     if (!anyFilter) return data?.tempo_por_situacao ?? [];
     const bySit: Record<string, number[]> = {};
     for (const l of filteredLeads) {
@@ -164,12 +158,12 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
         parados_15dias: dias.filter(d => d >= 15).length,
       }))
       .sort((a, b) => b.count - a.count);
-  }, [data, filteredLeads, accountCrmKeys, filterOrigens, filterUltimaOrigem]);
+  }, [data, filteredLeads, accountCrmKeys, filterOrigens]);
 
   // Filter motivos_descarte by accountCrmKeys + internal filters; rebuild count from filtered leads
   const filteredMotivosDescarte = useMemo(() => {
     const motivos = data?.motivos_descarte ?? [];
-    const anyInternalFilter = filterOrigens.length > 0 || filterUltimaOrigem.length > 0 || filterImobiliaria.length > 0;
+    const anyInternalFilter = filterOrigens.length > 0 || filterImobiliaria.length > 0;
 
     return motivos
       .map(m => {
@@ -179,7 +173,6 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
         // Filter leads by internal filters and rebuild count
         const filteredLeadsForMotivo = (m.leads ?? []).filter(l => {
           if (filterOrigens.length > 0 && !filterOrigens.includes(l.origem ?? "Não definido")) return false;
-          if (filterUltimaOrigem.length > 0 && !filterUltimaOrigem.includes(l.ultima_origem ?? "Não definido")) return false;
           if (filterImobiliaria.length > 0 && !filterImobiliaria.includes(l.imobiliaria ?? "Sem imobiliária")) return false;
           return true;
         });
@@ -187,11 +180,11 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
         return { ...m, count: filteredLeadsForMotivo.length, leads: filteredLeadsForMotivo };
       })
       .filter((m): m is NonNullable<typeof m> => m !== null);
-  }, [data, accountCrmKeys, filterOrigens, filterUltimaOrigem, filterImobiliaria]);
+  }, [data, accountCrmKeys, filterOrigens, filterImobiliaria]);
 
   const resumo = useMemo(() => {
     if (!data) return null;
-    const hasFilter = !!accountCrmKeys || filterOrigens.length > 0 || filterUltimaOrigem.length > 0 || !!filterImobiliaria.length;
+    const hasFilter = !!accountCrmKeys || filterOrigens.length > 0 || !!filterImobiliaria.length;
     if (!hasFilter) return data.resumo_parados;
     return {
       total_parados_3d:  filteredLeads.filter(l => l.dias_parado >= 3).length,
@@ -201,9 +194,9 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
         ? Math.round(filteredLeads.reduce((s, l) => s + l.dias_sem_contato, 0) / filteredLeads.length * 10) / 10
         : 0,
     };
-  }, [data, accountCrmKeys, filterOrigens, filterUltimaOrigem, filteredLeads]);
+  }, [data, accountCrmKeys, filterOrigens, filteredLeads]);
 
-  const hasFilter = filterOrigens.length > 0 || filterUltimaOrigem.length > 0 || !!filterImobiliaria.length;
+  const hasFilter = filterOrigens.length > 0 || !!filterImobiliaria.length;
 
   const displayTotal = useMemo(() => {
     // Exact intersection: Primeira Origem × Imobiliária
@@ -215,30 +208,10 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
       return total;
     }
 
-    // Exact intersection: Última Origem × Imobiliária
-    if (filterUltimaOrigem.length > 0 && filterImobiliaria.length > 0 && crmPorUltimaOrigemImobiliaria && !accountCrmKeys) {
-      let total = 0;
-      for (const uo of filterUltimaOrigem)
-        for (const imob of filterImobiliaria)
-          total += crmPorUltimaOrigemImobiliaria[uo]?.[imob] ?? 0;
-      return total;
-    }
-
     // Imobiliária filter only — sum from crmPorImobiliariaEmp (restricted by account)
     if (filterImobiliaria.length > 0 && crmPorImobiliariaEmp) {
       return filterImobiliaria.reduce((sum, imob) => {
         const empMap = crmPorImobiliariaEmp[imob] ?? {};
-        return sum + Object.entries(empMap).reduce((a, [emp, cnt]) => {
-          if (accountCrmKeys && !matchesAccount(emp, accountCrmKeys)) return a;
-          return a + cnt;
-        }, 0);
-      }, 0);
-    }
-
-    // Última Origem filter active — sum from crmPorUltimaOrigemEmp
-    if (filterUltimaOrigem.length > 0 && crmPorUltimaOrigemEmp) {
-      return filterUltimaOrigem.reduce((sum, uo) => {
-        const empMap = crmPorUltimaOrigemEmp[uo] ?? {};
         return sum + Object.entries(empMap).reduce((a, [emp, cnt]) => {
           if (accountCrmKeys && !matchesAccount(emp, accountCrmKeys)) return a;
           return a + cnt;
@@ -267,7 +240,7 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
     }
 
     return totalLeadsCrm;
-  }, [filterImobiliaria, filterUltimaOrigem, filterOrigens, accountCrmKeys, crmPorOrigem, crmPorOrigemEmp, crmPorImobiliariaEmp, crmPorUltimaOrigemEmp, crmPorOrigemImobiliaria, crmPorUltimaOrigemImobiliaria, totalLeadsCrm]);
+  }, [filterImobiliaria, filterOrigens, accountCrmKeys, crmPorOrigem, crmPorOrigemEmp, crmPorImobiliariaEmp, crmPorOrigemImobiliaria, totalLeadsCrm]);
 
   return (
     <div className="space-y-6">
@@ -286,14 +259,6 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
           onChange={setFilterOrigens}
         />
 
-        {/* Última Origem — multi select */}
-        <MultiSelectDropdown
-          label="Última Origem"
-          options={ultimaOrigemOptions}
-          selected={filterUltimaOrigem}
-          onChange={setFilterUltimaOrigem}
-        />
-
         {/* Imobiliária — multi select */}
         <MultiSelectDropdown
           label="Todas as imobiliárias"
@@ -304,7 +269,7 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
 
         {hasFilter && (
           <>
-            <button onClick={() => { setFilterOrigens([]); setFilterUltimaOrigem([]); setFilterImobiliaria([]); }} className="text-xs text-blue-600 hover:underline">
+            <button onClick={() => { setFilterOrigens([]); setFilterImobiliaria([]); }} className="text-xs text-blue-600 hover:underline">
               Limpar filtros
             </button>
             <span className="text-xs text-gray-400 ml-auto">
