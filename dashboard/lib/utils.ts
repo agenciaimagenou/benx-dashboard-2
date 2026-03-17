@@ -43,8 +43,7 @@ export function toBrDate(date: Date): string {
 
 export function getDefaultDateRange() {
   const end = new Date();
-  const start = new Date();
-  start.setDate(start.getDate() - 30);
+  const start = new Date(end.getFullYear(), end.getMonth(), 1);
   return { start, end };
 }
 
