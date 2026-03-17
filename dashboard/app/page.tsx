@@ -15,7 +15,7 @@ import GoogleAdsSection, { GoogleAdsAccount } from "@/components/sections/Google
 
 import { DateRange, MetaSummaryByAccount, MergedData } from "@/types";
 import { getDefaultDateRange, toISODate, findBestMatch } from "@/lib/utils";
-import { META_ACCOUNTS } from "@/lib/meta-accounts";
+import { META_ACCOUNTS, META_TO_GOOGLE } from "@/lib/meta-accounts";
 import MultiSelectDropdown from "@/components/MultiSelectDropdown";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -179,6 +179,21 @@ export default function Dashboard() {
 
   const accountOptions = META_ACCOUNTS.map(a => a.name);
 
+  // Filter Google Ads data by selected Meta accounts (with name mapping)
+  const filteredGoogleData = selectedAccounts.length === 0
+    ? googleData
+    : (() => {
+        const expectedNames = new Set(
+          selectedAccounts.map(name => {
+            const key = name.toLowerCase().trim();
+            return META_TO_GOOGLE[key] ?? key;
+          })
+        );
+        return googleData?.filter(g =>
+          expectedNames.has(g.account_name.toLowerCase().trim())
+        ) ?? null;
+      })();
+
   // Merge Meta + CRM with fuzzy name matching (uses filtered accounts)
   const crmEmpNames = crmData?.por_empreendimento.map(c => c.empreendimento) ?? [];
   const mergedData: MergedData[] = filteredMetaData.map(meta => {
@@ -283,7 +298,7 @@ export default function Dashboard() {
               metaData={filteredMetaData}
               crmData={crmData}
               mergedData={mergedData}
-              googleData={googleData}
+              googleData={filteredGoogleData}
               loading={loading}
             />
           )}

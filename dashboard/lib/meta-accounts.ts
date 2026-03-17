@@ -20,6 +20,14 @@ export const META_ACCOUNTS = [
   { id: "579479128231753",  name: "VIVA BENX | ESTAÇÃO VILA MARIANA", crmKey: "Viva Benx Estação Vila Mariana" },
 ];
 
+// Maps lowercased Meta account names → lowercased Google Ads account names (for mismatches)
+export const META_TO_GOOGLE: Record<string, string> = {
+  "benx | 1800 oscar":       "benx | 1800 oscar pinheiros",
+  "viva benx | pompeia":     "viva benx | pompéia",
+  "benx | j329":             "benx | j329 itaim",
+  "lisbo pinheiros":         "benx | lisbô pinheiros",
+};
+
 export const META_FIELDS = [
   "campaign_name",
   "date_start",

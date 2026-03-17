@@ -13,6 +13,7 @@ import {
 import { MergedData } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { GoogleAdsAccount } from "@/components/sections/GoogleAdsSection";
+import { META_TO_GOOGLE } from "@/lib/meta-accounts";
 
 interface Props {
   data: MergedData[];
@@ -68,14 +69,6 @@ export default function SpendLeadsChart({ data, googleData, loading }: Props) {
       </div>
     );
   }
-
-  // Explicit mapping for Meta → Google name mismatches
-  const META_TO_GOOGLE: Record<string, string> = {
-    "benx | 1800 oscar":       "benx | 1800 oscar pinheiros",
-    "viva benx | pompeia":     "viva benx | pompéia",
-    "benx | j329":             "benx | j329 itaim",
-    "lisbo pinheiros":         "benx | lisbô pinheiros",
-  };
 
   // Build Google Ads lookup by account_name (normalized)
   const googleMap = new Map<string, { spend: number; conversions: number }>();
