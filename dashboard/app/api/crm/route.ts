@@ -77,6 +77,8 @@ export async function GET(request: NextRequest) {
     por_situacao: Record<string, number>;
     _origemCounts: Record<string, number>;
     ganho_leads: LeadGanhoEntry[];
+    proposta_leads: LeadGanhoEntry[];
+    reserva_leads: LeadGanhoEntry[];
     novo_count: number;
     retorno_count: number;
   }
@@ -101,6 +103,8 @@ export async function GET(request: NextRequest) {
         por_situacao: {},
         _origemCounts: {},
         ganho_leads: [],
+        proposta_leads: [],
+        reserva_leads: [],
         novo_count: 0,
         retorno_count: 0,
       };
@@ -134,6 +138,24 @@ export async function GET(request: NextRequest) {
     }
     if (reserva || situacao.includes("reserva")) {
       entry.reserva += 1;
+      entry.reserva_leads.push({
+        id: lead["idlead"] as number,
+        nome: (lead["nome"] || "—") as string,
+        corretor: (lead["corretor"] || "—") as string,
+        data_cadastro: (lead["data_cad"] || null) as string | null,
+        origem: normalizeOrigem(lead["origem_nome"]),
+        situacao: (lead["situacao"] || "—") as string,
+      });
+    }
+    if (situacao.includes("proposta")) {
+      entry.proposta_leads.push({
+        id: lead["idlead"] as number,
+        nome: (lead["nome"] || "—") as string,
+        corretor: (lead["corretor"] || "—") as string,
+        data_cadastro: (lead["data_cad"] || null) as string | null,
+        origem: normalizeOrigem(lead["origem_nome"]),
+        situacao: (lead["situacao"] || "—") as string,
+      });
     }
     if (ganhos) {
       entry.ganhos += 1;

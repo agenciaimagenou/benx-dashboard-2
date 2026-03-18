@@ -31,6 +31,8 @@ interface CRMEmp {
   primary_origem: string;
   por_situacao: Record<string, number>;
   ganho_leads: LeadGanho[];
+  proposta_leads?: LeadGanho[];
+  reserva_leads?: LeadGanho[];
   novo_count: number;
   retorno_count: number;
 }
@@ -111,6 +113,7 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
   }
   const imobiliariasOptions = Object.keys(crmData?.por_imobiliaria_emp ?? {}).sort();
   const [vendaModal, setVendaModal] = useState<{ empreendimento: string; leads: LeadGanho[] } | null>(null);
+  const [sitModal, setSitModal] = useState<{ empreendimento: string; sit: string; leads: LeadGanho[] } | null>(null);
   const [visitaModal, setVisitaModal] = useState<{ empreendimento: string; tipo: "visita_agendada" | "visita_realizada" } | null>(null);
 
   const totalSpend    = metaData.reduce((s, m) => s + m.total_spend, 0);
@@ -492,14 +495,18 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
                         const venda = isVendaSit(sit);
                         const isVisitaAgendada = sit === "Visita Agendada";
                         const isVisitaRealizada = sit === "Visita Realizada";
-                        const isClickable = venda || isVisitaAgendada || isVisitaRealizada;
+                        const isProposta = sit === "Proposta";
+                        const isReserva = sit === "Com Reserva";
+                        const isClickable = venda || isVisitaAgendada || isVisitaRealizada || isProposta || isReserva;
                         return (
                           <td
                             key={sit}
                             className={cn(
                               "px-3 py-3 text-right text-xs",
                               venda && "bg-emerald-50/60",
-                              (isVisitaAgendada || isVisitaRealizada) && "bg-sky-50/60"
+                              (isVisitaAgendada || isVisitaRealizada) && "bg-sky-50/60",
+                              isProposta && "bg-amber-50/60",
+                              isReserva && "bg-violet-50/60"
                             )}
                           >
                             {cnt > 0 ? (
@@ -508,6 +515,8 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
                                   <button
                                     onClick={() => {
                                       if (venda) openVendaModal(emp);
+                                      else if (isProposta) setSitModal({ empreendimento: emp.empreendimento, sit: "Proposta", leads: emp.proposta_leads ?? [] });
+                                      else if (isReserva) setSitModal({ empreendimento: emp.empreendimento, sit: "Com Reserva", leads: emp.reserva_leads ?? [] });
                                       else if (dateStart && dateEnd) setVisitaModal({
                                         empreendimento: emp.empreendimento,
                                         tipo: isVisitaAgendada ? "visita_agendada" : "visita_realizada",
@@ -517,6 +526,10 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
                                       "inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full border transition-colors cursor-pointer",
                                       venda
                                         ? "text-emerald-700 bg-emerald-100 border-emerald-200 hover:bg-emerald-200"
+                                        : isProposta
+                                        ? "text-amber-700 bg-amber-100 border-amber-200 hover:bg-amber-200"
+                                        : isReserva
+                                        ? "text-violet-700 bg-violet-100 border-violet-200 hover:bg-violet-200"
                                         : "text-sky-700 bg-sky-100 border-sky-200 hover:bg-sky-200"
                                     )}
                                     title={`Ver leads — ${sit} — ${emp.empreendimento}`}
@@ -641,6 +654,61 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
           filterImobiliaria={filterImobiliaria}
           onClose={() => setVisitaModal(null)}
         />
+      )}
+
+      {/* Modal — Proposta / Com Reserva */}
+      {sitModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          onClick={() => setSitModal(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className={cn("flex items-center justify-between px-6 py-4 border-b border-gray-100", sitModal.sit === "Proposta" ? "bg-amber-50" : "bg-violet-50")}>
+              <div className="flex items-center gap-2">
+                <Users className={cn("w-5 h-5", sitModal.sit === "Proposta" ? "text-amber-600" : "text-violet-600")} />
+                <div>
+                  <h3 className="font-semibold text-gray-800">{sitModal.empreendimento}</h3>
+                  <p className={cn("text-xs mt-0.5", sitModal.sit === "Proposta" ? "text-amber-700" : "text-violet-700")}>
+                    {sitModal.leads.length} lead{sitModal.leads.length !== 1 ? "s" : ""} em {sitModal.sit}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setSitModal(null)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                <X className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">ID</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Nome</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Corretor</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Origem</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Cadastro</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sitModal.leads.map((l, i) => (
+                    <tr key={l.id} className={cn("border-b border-gray-50 hover:bg-gray-50/60 transition-colors", i % 2 === 0 ? "bg-white" : "bg-gray-50/40")}>
+                      <td className="px-4 py-3 text-xs text-gray-400 font-mono whitespace-nowrap">{l.id}</td>
+                      <td className="px-4 py-3 font-medium text-gray-800 max-w-[200px] truncate">{l.nome}</td>
+                      <td className="px-4 py-3 text-xs text-gray-600 max-w-[160px] truncate">{l.corretor}</td>
+                      <td className="px-4 py-3 text-xs text-gray-500">{l.origem}</td>
+                      <td className="px-4 py-3 text-right text-xs text-gray-500 whitespace-nowrap">{l.data_cadastro ?? "—"}</td>
+                    </tr>
+                  ))}
+                  {sitModal.leads.length === 0 && (
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">Nenhum lead encontrado</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal — Vendas Realizadas */}
