@@ -267,7 +267,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       {/* Sidebar */}
       <Sidebar
         active={activePage}
@@ -280,17 +280,18 @@ export default function Dashboard() {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
-        <header className="bg-white border-b border-gray-100 px-6 py-3 flex items-center justify-between flex-shrink-0 z-10">
-          <div>
-            <h2 className="text-base font-semibold text-gray-800">{PAGE_TITLES[activePage]}</h2>
-            <p className="text-xs text-gray-400">
-              {format(dateRange.start, "dd/MM/yyyy", { locale: ptBR })} →{" "}
-              {format(dateRange.end, "dd/MM/yyyy", { locale: ptBR })}
-            </p>
+        <header className="bg-white/80 backdrop-blur-sm border-b border-gray-100 px-6 py-3.5 flex items-center justify-between flex-shrink-0 z-10 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div>
+              <h2 className="text-base font-bold text-gray-900 tracking-tight">{PAGE_TITLES[activePage]}</h2>
+              <p className="text-[11px] text-gray-400 font-medium">
+                {format(dateRange.start, "dd/MM/yyyy", { locale: ptBR })} → {format(dateRange.end, "dd/MM/yyyy", { locale: ptBR })}
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-3 flex-wrap justify-end">
+          <div className="flex items-center gap-2.5 flex-wrap justify-end">
             {lastUpdated && (
-              <span className="text-xs text-gray-400 hidden sm:block">
+              <span className="text-[11px] text-gray-400 hidden sm:block font-medium">
                 Atualizado {format(lastUpdated, "HH:mm", { locale: ptBR })}
               </span>
             )}
@@ -303,7 +304,7 @@ export default function Dashboard() {
             <button
               onClick={() => fetchData(dateRange, stuckThreshold)}
               disabled={loading}
-              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-blue-600 border border-gray-200 rounded-lg px-3 py-2 hover:bg-blue-50 transition-all disabled:opacity-50"
+              className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-blue-600 border border-gray-200 rounded-lg px-3 py-2 hover:bg-blue-50 hover:border-blue-200 transition-all disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               <span className="hidden sm:inline">Atualizar</span>

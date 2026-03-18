@@ -1,16 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-} from "recharts";
 import { XCircle, X } from "lucide-react";
 import { cn, formatNumber } from "@/lib/utils";
 
@@ -39,18 +29,15 @@ interface Props {
   loading?: boolean;
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-sm max-w-[220px]">
-        <p className="font-semibold text-gray-700 text-xs mb-1">{label}</p>
-        <p className="text-red-600 font-medium">{formatNumber(payload[0].value)} descartados</p>
-        <p className="text-xs text-gray-400 mt-1">Clique para ver os leads</p>
-      </div>
-    );
-  }
-  return null;
-};
+const RANK_COLORS = [
+  "bg-gradient-to-r from-red-500 to-rose-400",
+  "bg-gradient-to-r from-red-400 to-orange-300",
+  "bg-gradient-to-r from-orange-400 to-amber-300",
+  "bg-gradient-to-r from-amber-400 to-yellow-300",
+];
+function barColor(i: number) {
+  return RANK_COLORS[Math.min(i, RANK_COLORS.length - 1)];
+}
 
 export default function DiscardReasonsChart({ data, loading }: Props) {
   const [view, setView] = useState<"chart" | "table">("chart");
@@ -82,7 +69,7 @@ export default function DiscardReasonsChart({ data, loading }: Props) {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 animate-pulse">
+      <div className="bg-white rounded-2xl ring-1 ring-slate-200 shadow-sm p-6 animate-pulse">
         <div className="h-5 bg-gray-200 rounded w-48 mb-4" />
         <div className="h-64 bg-gray-100 rounded" />
       </div>
@@ -93,7 +80,7 @@ export default function DiscardReasonsChart({ data, loading }: Props) {
 
   return (
     <>
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl ring-1 ring-slate-200 shadow-sm overflow-hidden">
         <div className="p-5 border-b border-gray-50">
           <div className="flex flex-wrap items-start gap-3 justify-between">
             <div className="flex items-center gap-2">
@@ -134,49 +121,67 @@ export default function DiscardReasonsChart({ data, loading }: Props) {
             <p className="text-gray-400 text-sm">Nenhum descarte registrado no período</p>
           </div>
         ) : view === "chart" ? (
-          <div className="p-5">
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart
-                data={chartData}
-                layout="vertical"
-                margin={{ top: 0, right: 40, left: 0, bottom: 0 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 10, fill: "#6b7280" }} />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  tick={{ fontSize: 10, fill: "#6b7280" }}
-                  width={140}
-                  tickFormatter={(v: string) => v.length > 22 ? v.substring(0, 22) + "…" : v}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar
-                  dataKey="value"
-                  radius={[0, 4, 4, 0]}
-                  name="Descartados"
-                  label={{ position: "right", fontSize: 10, fill: "#6b7280" }}
-                  cursor="pointer"
-                  onClick={(d: any) => openModal(d.name)}
+          <div className="p-5 space-y-2">
+            {chartData.map((entry, i) => {
+              const pct = (entry.value / chartData[0].value) * 100;
+              const sharePct = total > 0 ? (entry.value / total) * 100 : 0;
+              const rankBg = i === 0 ? "bg-red-500 text-white shadow-red-200"
+                           : i === 1 ? "bg-red-400 text-white shadow-rose-200"
+                           : i === 2 ? "bg-orange-400 text-white shadow-orange-200"
+                           : "bg-slate-100 text-slate-500";
+              return (
+                <button
+                  key={entry.name}
+                  onClick={() => openModal(entry.name)}
+                  className="group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50/60 transition-colors duration-150 text-left"
                 >
-                  {chartData.map((entry, i) => (
-                    <Cell key={i} fill="#ef4444" />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+                  {/* Rank badge */}
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black flex-shrink-0 shadow-sm ${rankBg}`}>
+                    {i + 1}
+                  </div>
+
+                  {/* Label + bar */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-semibold text-slate-700 truncate max-w-[260px] group-hover:text-slate-900">
+                        {entry.name}
+                      </span>
+                      <span className="text-[10px] text-slate-400 ml-2 flex-shrink-0">
+                        {sharePct.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${barColor(i)}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Count pill */}
+                  <span className={cn(
+                    "text-[11px] font-bold px-2.5 py-0.5 rounded-full flex-shrink-0 ring-1",
+                    i === 0 ? "bg-red-50 text-red-600 ring-red-200"
+                    : i <= 2 ? "bg-orange-50 text-orange-600 ring-orange-200"
+                    : "bg-slate-50 text-slate-500 ring-slate-200"
+                  )}>
+                    {formatNumber(entry.value)}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Motivo</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Descrição</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Submotivo</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Empreendimento</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Qtde</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">%</th>
+                <tr className="bg-slate-800">
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-300 uppercase tracking-wider">Motivo</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-300 uppercase tracking-wider">Descrição</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-300 uppercase tracking-wider">Submotivo</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-300 uppercase tracking-wider">Empreendimento</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-bold text-slate-300 uppercase tracking-wider">Qtde</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-bold text-slate-300 uppercase tracking-wider">%</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -233,23 +238,23 @@ export default function DiscardReasonsChart({ data, loading }: Props) {
 
             <div className="overflow-y-auto flex-1">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-gray-50 border-b border-gray-100">
+                <thead className="sticky top-0 bg-slate-800 border-b border-slate-700">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">ID</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Nome</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Empreendimento</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Corretor</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Cadastro</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-300 uppercase tracking-wider">ID</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-300 uppercase tracking-wider">Nome</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-300 uppercase tracking-wider">Empreendimento</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-300 uppercase tracking-wider">Corretor</th>
+                    <th className="px-4 py-3 text-right text-[11px] font-bold text-slate-300 uppercase tracking-wider">Cadastro</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {modal.leads.map((l, i) => (
-                    <tr key={l.id} className={cn("hover:bg-red-50/30 transition-colors", i % 2 === 0 ? "bg-white" : "bg-gray-50/40")}>
+                    <tr key={l.id} className={cn("border-b border-slate-100 hover:bg-red-50/30 transition-colors", i % 2 === 0 ? "bg-white" : "bg-slate-50/40")}>
                       <td className="px-4 py-3 text-xs text-gray-400 font-mono whitespace-nowrap">{l.id}</td>
                       <td className="px-4 py-3 font-medium text-gray-800 max-w-[200px] truncate">{l.nome}</td>
                       <td className="px-4 py-3 text-xs text-gray-600 max-w-[160px] truncate">{l.empreendimento}</td>
                       <td className="px-4 py-3 text-xs text-gray-500 max-w-[160px] truncate">{l.corretor}</td>
-                      <td className="px-4 py-3 text-right text-xs text-gray-500 whitespace-nowrap">{l.data_cadastro ?? "—"}</td>
+                      <td className="px-4 py-3 text-right text-[11px] text-gray-400 whitespace-nowrap font-mono">{l.data_cadastro ? (l.data_cadastro.includes("T") ? l.data_cadastro.split("T")[0] : l.data_cadastro) : "—"}</td>
                     </tr>
                   ))}
                   {modal.leads.length === 0 && (

@@ -94,7 +94,7 @@ export default function GoogleAdsSection({ data, loading }: Props) {
       </div>
 
       {/* Accounts table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl ring-1 ring-slate-200 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-50">
           <h3 className="font-semibold text-gray-800">Contas Google Ads</h3>
           <p className="text-xs text-gray-400 mt-0.5">{data.length} contas com dados no período</p>
@@ -102,12 +102,12 @@ export default function GoogleAdsSection({ data, loading }: Props) {
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-100">
+            <thead className="bg-slate-800">
               <tr>
                 {["Conta", "Valor Gasto", "Impressões", "Cliques", "CTR", "CPC", "CPM", "Conversões", "CPL"].map(h => (
                   <th
                     key={h}
-                    className={`px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap ${
+                    className={`px-4 py-3 text-[11px] font-bold text-slate-300 uppercase tracking-wider whitespace-nowrap ${
                       h === "Conta" ? "text-left" : "text-right"
                     }`}
                   >
@@ -118,7 +118,7 @@ export default function GoogleAdsSection({ data, loading }: Props) {
             </thead>
             <tbody>
               {data.map((account, i) => (
-                <tr key={account.account_id} className={`transition-colors hover:bg-blue-50/40 ${i % 2 === 0 ? "bg-white" : "bg-gray-100"}`}>
+                <tr key={account.account_id} className={`border-b border-slate-100 transition-colors hover:bg-blue-50/40 ${i % 2 === 0 ? "bg-white" : "bg-slate-50/40"}`}>
                   <td className="px-4 py-3 font-medium text-gray-800 truncate max-w-[200px]">{account.account_name}</td>
                   <td className="px-4 py-3 text-right font-semibold text-gray-800">{formatCurrency(account.spend)}</td>
                   <td className="px-4 py-3 text-right text-gray-600">{formatNumber(account.impressions)}</td>
@@ -133,17 +133,17 @@ export default function GoogleAdsSection({ data, loading }: Props) {
             </tbody>
 
             {/* Totals row */}
-            <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+            <tfoot className="bg-slate-800 border-t-2 border-slate-700">
               <tr>
-                <td className="px-4 py-3 font-semibold text-gray-700 text-xs uppercase tracking-wide">Total</td>
-                <td className="px-4 py-3 text-right font-bold text-gray-800">{formatCurrency(totals.spend)}</td>
-                <td className="px-4 py-3 text-right font-semibold text-gray-700">{formatNumber(totals.impressions)}</td>
-                <td className="px-4 py-3 text-right font-semibold text-gray-700">{formatNumber(totals.clicks)}</td>
-                <td className="px-4 py-3 text-right font-semibold text-gray-700">{totalCtr.toFixed(2)}%</td>
-                <td className="px-4 py-3 text-right font-semibold text-gray-700">{formatCurrency(totalCpc)}</td>
-                <td className="px-4 py-3 text-right text-gray-400">—</td>
-                <td className="px-4 py-3 text-right font-semibold text-gray-700">{Math.round(totals.conversions)}</td>
-                <td className="px-4 py-3 text-right font-semibold text-gray-700">{formatCurrency(totalCpl)}</td>
+                <td className="px-4 py-3 font-bold text-slate-200 text-[11px] uppercase tracking-wider">Total</td>
+                <td className="px-4 py-3 text-right font-bold text-slate-200">{formatCurrency(totals.spend)}</td>
+                <td className="px-4 py-3 text-right font-semibold text-slate-300">{formatNumber(totals.impressions)}</td>
+                <td className="px-4 py-3 text-right font-semibold text-slate-300">{formatNumber(totals.clicks)}</td>
+                <td className="px-4 py-3 text-right font-semibold text-slate-300">{totalCtr.toFixed(2)}%</td>
+                <td className="px-4 py-3 text-right font-semibold text-slate-300">{formatCurrency(totalCpc)}</td>
+                <td className="px-4 py-3 text-right text-slate-500">—</td>
+                <td className="px-4 py-3 text-right font-semibold text-slate-300">{Math.round(totals.conversions)}</td>
+                <td className="px-4 py-3 text-right font-semibold text-slate-300">{formatCurrency(totalCpl)}</td>
               </tr>
             </tfoot>
           </table>

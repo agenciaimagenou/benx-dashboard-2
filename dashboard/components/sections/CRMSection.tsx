@@ -337,7 +337,7 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
             });
           });
           return merged;
-        })()} loading={loading} />
+        })()} loading={loading} compact />
         <OrigemChart porOrigem={porOrigemFiltrado} loading={loading} />
       </div>
 
@@ -375,6 +375,16 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
             "Proposta",
             "Com Reserva",
           ];
+          const SIT_ABBREV: Record<string, string> = {
+            "Lead Recebido":        "Recebido",
+            "Tentativa de Contato": "T. Contato",
+            "Em Atendimento":       "Atend.",
+            "Visita Agendada":      "Visita Agendada",
+            "Visita Realizada":     "Visita Realizada",
+            "Proposta":             "Proposta",
+            "Com Reserva":          "Reserva",
+            "Venda Realizada":      "Venda",
+          };
           const sitCols = [
             ...SIT_ORDER.filter(s => s in sitTotals),
             ...Object.keys(sitTotals).filter(s => !SIT_ORDER.includes(s)).sort((a, b) => (sitTotals[b] ?? 0) - (sitTotals[a] ?? 0)),
@@ -401,45 +411,44 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
 
           return (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b-2 border-gray-200">
+                  <tr className="bg-slate-800">
                     <th
                       onClick={() => toggleFunnelSort("empreendimento")}
-                      className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap sticky left-0 bg-white z-10 border-r border-gray-100 cursor-pointer select-none hover:bg-gray-50 transition-colors"
+                      className="px-3 py-2.5 text-left text-[10px] font-bold text-slate-300 uppercase tracking-wider whitespace-nowrap sticky left-0 bg-slate-800 z-10 border-r border-slate-700 cursor-pointer select-none hover:bg-slate-700 transition-colors"
                     >
                       <div className="flex items-center gap-1">Empreendimento <FunnelSortIcon col="empreendimento" /></div>
                     </th>
                     <th
                       onClick={() => toggleFunnelSort("total")}
-                      className="px-4 py-3 text-right text-xs font-semibold text-blue-600 uppercase tracking-wide whitespace-nowrap bg-blue-50 border-r border-gray-100 cursor-pointer select-none hover:bg-blue-100 transition-colors"
+                      className="px-2 py-2.5 text-right text-[10px] font-bold text-blue-300 uppercase tracking-wider whitespace-nowrap bg-slate-800 border-r border-slate-700 cursor-pointer select-none hover:bg-slate-700 transition-colors"
                     >
                       <div className="flex items-center justify-end gap-1">Total <FunnelSortIcon col="total" /></div>
                     </th>
-                    <th className="px-3 py-3 text-right text-xs font-semibold text-sky-600 uppercase tracking-wide whitespace-nowrap bg-sky-50">
-                      Lead Novo
+                    <th title="Lead Novo" className="px-2 py-2.5 text-right text-[10px] font-bold text-sky-300 uppercase tracking-wider whitespace-nowrap bg-slate-800 cursor-default">
+                      Novo
                     </th>
-                    <th className="px-3 py-3 text-right text-xs font-semibold text-violet-600 uppercase tracking-wide whitespace-nowrap bg-violet-50">
-                      Lead Retorno
+                    <th title="Lead Retorno" className="px-2 py-2.5 text-right text-[10px] font-bold text-violet-300 uppercase tracking-wider whitespace-nowrap bg-slate-800 cursor-default">
+                      Retorno
                     </th>
                     {sitCols.map(sit => (
                       <th
                         key={sit}
+                        title={sit}
                         className={cn(
-                          "px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide whitespace-nowrap",
-                          isVendaSit(sit)
-                            ? "text-emerald-700 bg-emerald-50"
-                            : "text-gray-500 bg-gray-50"
+                          "px-2 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap bg-slate-800 cursor-default",
+                          isVendaSit(sit) ? "text-emerald-300" : "text-slate-400"
                         )}
                       >
-                        {sit}
+                        {SIT_ABBREV[sit] ?? sit}
                       </th>
                     ))}
                     <th
                       onClick={() => toggleFunnelSort("conversao")}
-                      className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap bg-gray-50 cursor-pointer select-none hover:bg-gray-100 transition-colors"
+                      className="px-2 py-2.5 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap bg-slate-800 cursor-pointer select-none hover:bg-slate-700 transition-colors"
                     >
-                      <div className="flex items-center justify-end gap-1">Conversão <FunnelSortIcon col="conversao" /></div>
+                      <div className="flex items-center justify-end gap-1" title="Taxa de Conversão (Vendas / Total)">Conv. <FunnelSortIcon col="conversao" /></div>
                     </th>
                   </tr>
                 </thead>
@@ -448,41 +457,41 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
                     <tr
                       key={emp.empreendimento}
                       className={cn(
-                        "border-b border-gray-100 hover:bg-blue-50/30 transition-colors",
-                        i % 2 === 0 ? "bg-white" : "bg-gray-50/50"
+                        "border-b border-slate-100 hover:bg-blue-50/40 transition-all duration-100",
+                        i % 2 === 0 ? "bg-white" : "bg-slate-50/50"
                       )}
                     >
                       <td className={cn(
-                        "px-4 py-3 font-medium text-gray-800 whitespace-nowrap sticky left-0 z-10 border-r border-gray-200",
-                        i % 2 === 0 ? "bg-white" : "bg-gray-50"
+                        "px-3 py-2 font-semibold text-slate-700 whitespace-nowrap sticky left-0 z-10 border-r border-slate-200 text-xs",
+                        i % 2 === 0 ? "bg-white" : "bg-slate-50"
                       )}>
-                        {emp.empreendimento}
+                        {emp.empreendimento.replace(/^VIVA BENX\s*/i, "VB ")}
                       </td>
-                      <td className="px-4 py-3 text-right font-bold text-blue-700 bg-blue-50/40 border-r border-gray-100 whitespace-nowrap">
+                      <td className="px-2 py-2 text-right font-bold text-blue-700 bg-blue-50/40 border-r border-gray-100 whitespace-nowrap">
                         {formatNumber(filterImobiliaria.length ? empImobTotal(emp.empreendimento) : filterOrigens.length ? empOrigemTotal(emp.empreendimento) : emp.total_leads)}
                       </td>
-                      <td className="px-3 py-3 text-right bg-sky-50/40">
+                      <td className="px-2 py-2 text-right bg-sky-50/40">
                         {(() => {
                           const cnt = filterImobiliaria.length ? empImobNovo(emp.empreendimento) : filterOrigens.length ? empOrigemNovo(emp.empreendimento) : (emp.novo_count ?? 0);
                           const effTotal = filterImobiliaria.length ? empImobTotal(emp.empreendimento) : filterOrigens.length ? empOrigemTotal(emp.empreendimento) : emp.total_leads;
                           const pct = effTotal > 0 ? ((cnt / effTotal) * 100).toFixed(1) : "0.0";
                           return cnt > 0 ? (
-                            <div className="flex flex-col items-end gap-0.5">
-                              <span className="font-medium text-sky-700">{cnt}</span>
-                              <span className="text-gray-400 text-xs">{pct}%</span>
+                            <div className="flex flex-col items-end leading-tight">
+                              <span className="font-semibold text-sky-700">{cnt}</span>
+                              <span className="text-[9px] text-gray-400">{pct}%</span>
                             </div>
                           ) : <span className="text-gray-200">—</span>;
                         })()}
                       </td>
-                      <td className="px-3 py-3 text-right bg-violet-50/40">
+                      <td className="px-2 py-2 text-right bg-violet-50/40">
                         {(() => {
                           const cnt = filterImobiliaria.length ? empImobRetorno(emp.empreendimento) : filterOrigens.length ? empOrigemRetorno(emp.empreendimento) : (emp.retorno_count ?? 0);
                           const effTotal = filterImobiliaria.length ? empImobTotal(emp.empreendimento) : filterOrigens.length ? empOrigemTotal(emp.empreendimento) : emp.total_leads;
                           const pct = effTotal > 0 ? ((cnt / effTotal) * 100).toFixed(1) : "0.0";
                           return cnt > 0 ? (
-                            <div className="flex flex-col items-end gap-0.5">
-                              <span className="font-medium text-violet-700">{cnt}</span>
-                              <span className="text-gray-400 text-xs">{pct}%</span>
+                            <div className="flex flex-col items-end leading-tight">
+                              <span className="font-semibold text-violet-700">{cnt}</span>
+                              <span className="text-[9px] text-gray-400">{pct}%</span>
                             </div>
                           ) : <span className="text-gray-200">—</span>;
                         })()}
@@ -502,7 +511,7 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
                           <td
                             key={sit}
                             className={cn(
-                              "px-3 py-3 text-right text-xs",
+                              "px-2 py-2 text-right",
                               venda && "bg-emerald-50/60",
                               (isVisitaAgendada || isVisitaRealizada) && "bg-sky-50/60",
                               isProposta && "bg-amber-50/60",
@@ -510,8 +519,8 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
                             )}
                           >
                             {cnt > 0 ? (
-                              isClickable ? (
-                                <div className="flex flex-col items-end gap-0.5">
+                              <div className="flex flex-col items-end leading-tight">
+                                {isClickable ? (
                                   <button
                                     onClick={() => {
                                       if (venda) openVendaModal(emp);
@@ -523,7 +532,7 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
                                       });
                                     }}
                                     className={cn(
-                                      "inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full border transition-colors cursor-pointer",
+                                      "inline-flex items-center gap-0.5 font-bold px-1.5 py-0.5 rounded-full border transition-colors cursor-pointer text-[10px]",
                                       venda
                                         ? "text-emerald-700 bg-emerald-100 border-emerald-200 hover:bg-emerald-200"
                                         : isProposta
@@ -534,24 +543,21 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
                                     )}
                                     title={`Ver leads — ${sit} — ${emp.empreendimento}`}
                                   >
-                                    {venda ? <Trophy className="w-3 h-3" /> : <Users className="w-3 h-3" />}
+                                    {venda ? <Trophy className="w-2.5 h-2.5" /> : <Users className="w-2.5 h-2.5" />}
                                     {cnt}
                                   </button>
-                                  <span className="text-gray-400 text-xs">{pct}%</span>
-                                </div>
-                              ) : (
-                                <div className="flex flex-col items-end gap-0.5">
-                                  <span className="font-medium text-gray-700">{cnt}</span>
-                                  <span className="text-gray-400 text-xs">{pct}%</span>
-                                </div>
-                              )
+                                ) : (
+                                  <span className="font-semibold text-gray-700">{cnt}</span>
+                                )}
+                                <span className="text-[9px] text-gray-400">{pct}%</span>
+                              </div>
                             ) : (
                               <span className="text-gray-200">—</span>
                             )}
                           </td>
                         );
                       })}
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-2 py-2 text-right">
                         {(() => {
                           const effTotal = filterImobiliaria.length ? empImobTotal(emp.empreendimento) : filterOrigens.length ? empOrigemTotal(emp.empreendimento) : emp.total_leads;
                           const effGanhos = filterImobiliaria.length
@@ -561,11 +567,11 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
                             : emp.ganhos;
                           const rate = effTotal > 0 ? (effGanhos / effTotal) * 100 : 0;
                           return (
-                            <div className="flex items-center justify-end gap-2">
-                              <div className="w-12 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <div className="w-10 h-1 bg-gray-100 rounded-full overflow-hidden">
                                 <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${Math.min(rate, 100)}%` }} />
                               </div>
-                              <span className={cn("text-xs font-medium", rate > 0 ? "text-emerald-600" : "text-gray-400")}>
+                              <span className={cn("font-medium", rate > 0 ? "text-emerald-600" : "text-gray-400")}>
                                 {rate.toFixed(1)}%
                               </span>
                             </div>
@@ -583,12 +589,12 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
                   )}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t-2 border-gray-200 bg-gray-100">
-                    <td className="px-4 py-3 text-xs font-bold text-gray-700 uppercase sticky left-0 bg-gray-100 z-20 border-r border-gray-200">Total</td>
-                    <td className="px-4 py-3 text-right text-xs font-bold text-blue-700 bg-blue-100/60 border-r border-gray-200">
+                  <tr className="bg-slate-800">
+                    <td className="px-3 py-2.5 text-[10px] font-bold text-slate-200 uppercase tracking-wider sticky left-0 bg-slate-800 z-20 border-r border-slate-700">Total</td>
+                    <td className="px-2 py-2.5 text-right text-[10px] font-bold text-blue-300 bg-slate-800 border-r border-slate-700">
                       {formatNumber(totalCrmLeads)}
                     </td>
-                    <td className="px-3 py-3 text-right text-xs font-bold text-sky-700 bg-sky-100/60">
+                    <td className="px-2 py-2.5 text-right text-[10px] font-bold text-sky-300 bg-slate-800">
                       {(() => {
                         const cnt = filterImobiliaria.length
                           ? empreendimentos.reduce((s, e) => s + empImobNovo(e.empreendimento), 0)
@@ -596,15 +602,10 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
                           ? empreendimentos.reduce((s, e) => s + empOrigemNovo(e.empreendimento), 0)
                           : empreendimentos.reduce((s, e) => s + (e.novo_count ?? 0), 0);
                         const pct = totalCrmLeads > 0 ? ((cnt / totalCrmLeads) * 100).toFixed(1) : "0.0";
-                        return (
-                          <div className="flex flex-col items-end gap-0.5">
-                            <span>{formatNumber(cnt)}</span>
-                            <span className="text-gray-400 font-normal">{pct}%</span>
-                          </div>
-                        );
+                        return <div className="flex flex-col items-end leading-tight"><span>{formatNumber(cnt)}</span><span className="text-[9px] text-slate-500 font-normal">{pct}%</span></div>;
                       })()}
                     </td>
-                    <td className="px-3 py-3 text-right text-xs font-bold text-violet-700 bg-violet-100/60">
+                    <td className="px-2 py-2.5 text-right text-[10px] font-bold text-violet-300 bg-slate-800">
                       {(() => {
                         const cnt = filterImobiliaria.length
                           ? empreendimentos.reduce((s, e) => s + empImobRetorno(e.empreendimento), 0)
@@ -612,27 +613,22 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
                           ? empreendimentos.reduce((s, e) => s + empOrigemRetorno(e.empreendimento), 0)
                           : empreendimentos.reduce((s, e) => s + (e.retorno_count ?? 0), 0);
                         const pct = totalCrmLeads > 0 ? ((cnt / totalCrmLeads) * 100).toFixed(1) : "0.0";
-                        return (
-                          <div className="flex flex-col items-end gap-0.5">
-                            <span>{formatNumber(cnt)}</span>
-                            <span className="text-gray-400 font-normal">{pct}%</span>
-                          </div>
-                        );
+                        return <div className="flex flex-col items-end leading-tight"><span>{formatNumber(cnt)}</span><span className="text-[9px] text-slate-500 font-normal">{pct}%</span></div>;
                       })()}
                     </td>
                     {sitCols.map(sit => {
                       const cnt = sitTotals[sit] ?? 0;
                       const pct = totalCrmLeads > 0 ? ((cnt / totalCrmLeads) * 100).toFixed(1) : "0.0";
                       return (
-                        <td key={sit} className={cn("px-3 py-3 text-right text-xs font-bold", isVendaSit(sit) ? "text-emerald-700 bg-emerald-100/60" : "text-gray-700")}>
-                          <div className="flex flex-col items-end gap-0.5">
+                        <td key={sit} className={cn("px-2 py-2.5 text-right text-[10px] font-bold bg-slate-800", isVendaSit(sit) ? "text-emerald-300" : "text-slate-300")}>
+                          <div className="flex flex-col items-end leading-tight">
                             <span>{formatNumber(cnt)}</span>
-                            <span className="text-gray-400 font-normal">{pct}%</span>
+                            <span className="text-[9px] text-slate-500 font-normal">{pct}%</span>
                           </div>
                         </td>
                       );
                     })}
-                    <td className="px-4 py-3 text-right text-xs font-bold text-emerald-600">
+                    <td className="px-2 py-2.5 text-right text-[10px] font-bold text-emerald-300 bg-slate-800">
                       {totalCrmLeads > 0 ? ((totalGanhos / totalCrmLeads) * 100).toFixed(1) : "0.0"}%
                     </td>
                   </tr>
@@ -682,18 +678,18 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
             </div>
             <div className="overflow-y-auto flex-1">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-gray-50 border-b border-gray-100">
+                <thead className="sticky top-0 bg-slate-800 border-b border-slate-700">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">ID</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Nome</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Corretor</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Origem</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Cadastro</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-300 uppercase tracking-wider">ID</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-300 uppercase tracking-wider">Nome</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-300 uppercase tracking-wider">Corretor</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-300 uppercase tracking-wider">Origem</th>
+                    <th className="px-4 py-3 text-right text-[11px] font-bold text-slate-300 uppercase tracking-wider">Cadastro</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sitModal.leads.map((l, i) => (
-                    <tr key={l.id} className={cn("border-b border-gray-50 hover:bg-gray-50/60 transition-colors", i % 2 === 0 ? "bg-white" : "bg-gray-50/40")}>
+                    <tr key={l.id} className={cn("border-b border-slate-100 hover:bg-blue-50/40 transition-colors", i % 2 === 0 ? "bg-white" : "bg-slate-50/40")}>
                       <td className="px-4 py-3 text-xs text-gray-400 font-mono whitespace-nowrap">{l.id}</td>
                       <td className="px-4 py-3 font-medium text-gray-800 max-w-[200px] truncate">{l.nome}</td>
                       <td className="px-4 py-3 text-xs text-gray-600 max-w-[160px] truncate">{l.corretor}</td>
@@ -740,20 +736,20 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
             {/* Body */}
             <div className="overflow-y-auto flex-1">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-gray-50 border-b border-gray-100">
+                <thead className="sticky top-0 bg-slate-800 border-b border-slate-700">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">ID</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Nome</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Corretor</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Origem</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Cadastro</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-300 uppercase tracking-wider">ID</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-300 uppercase tracking-wider">Nome</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-300 uppercase tracking-wider">Corretor</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-300 uppercase tracking-wider">Origem</th>
+                    <th className="px-4 py-3 text-right text-[11px] font-bold text-slate-300 uppercase tracking-wider">Cadastro</th>
                   </tr>
                 </thead>
                 <tbody>
                   {vendaModal.leads.map((l, i) => (
                     <tr
                       key={l.id}
-                      className={cn("border-b border-gray-50 hover:bg-emerald-50/40 transition-colors", i % 2 === 0 ? "bg-white" : "bg-gray-50/40")}
+                      className={cn("border-b border-slate-100 hover:bg-emerald-50/40 transition-colors", i % 2 === 0 ? "bg-white" : "bg-slate-50/40")}
                     >
                       <td className="px-4 py-3 text-xs text-gray-400 font-mono whitespace-nowrap">{l.id}</td>
                       <td className="px-4 py-3 font-medium text-gray-800 max-w-[200px] truncate">{l.nome}</td>

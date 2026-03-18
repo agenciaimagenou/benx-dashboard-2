@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertCircle, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface StuckLead {
@@ -41,6 +41,14 @@ function parseBrDate(s: string | null): number {
   const p = s.split("/");
   if (p.length !== 3) return 0;
   return new Date(`${p[2]}-${p[1]}-${p[0]}`).getTime();
+}
+
+function formatDate(s: string | null): string {
+  if (!s) return "—";
+  // ISO format: 2026-03-01T01:38:53 → 2026-03-01
+  if (s.includes("T")) return s.split("T")[0];
+  // Already clean or BR format
+  return s;
 }
 
 export default function StuckLeadsTable({ leads, loading, threshold = 3, onThresholdChange }: Props) {
@@ -89,11 +97,11 @@ export default function StuckLeadsTable({ leads, loading, threshold = 3, onThres
   const pages = Math.ceil(filtered.length / PAGE_SIZE);
   const current = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
-  const thClass = "px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide cursor-pointer select-none hover:bg-gray-100 transition-colors";
+  const thClass = "px-3 py-2.5 text-[10px] font-bold text-slate-300 uppercase tracking-wider cursor-pointer select-none hover:bg-slate-700 transition-colors whitespace-nowrap";
 
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 animate-pulse">
+      <div className="bg-white rounded-2xl ring-1 ring-slate-200 shadow-sm p-6 animate-pulse">
         <div className="h-5 bg-gray-200 rounded w-48 mb-4" />
         <div className="space-y-2">
           {Array.from({ length: 8 }).map((_, i) => (
@@ -105,7 +113,7 @@ export default function StuckLeadsTable({ leads, loading, threshold = 3, onThres
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-2xl ring-1 ring-slate-200 shadow-sm overflow-hidden">
       <div className="p-5 border-b border-gray-50">
         <div className="flex flex-wrap items-start gap-4 justify-between">
           <div className="flex items-center gap-2">
@@ -164,7 +172,7 @@ export default function StuckLeadsTable({ leads, loading, threshold = 3, onThres
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
+                <tr className="bg-slate-800">
                   <th onClick={() => toggleSort("id")} className={cn(thClass, "text-right")}>
                     <div className="flex items-center justify-end gap-1">ID <SortIcon col="id" /></div>
                   </th>
@@ -193,24 +201,18 @@ export default function StuckLeadsTable({ leads, loading, threshold = 3, onThres
               </thead>
               <tbody>
                 {current.map((lead, i) => (
-                  <tr key={lead.id} className={cn("transition-colors hover:bg-blue-50/40", i % 2 === 0 ? "bg-white" : "bg-gray-100")}>
-                    <td className="px-4 py-3 text-right text-xs font-mono text-gray-400 whitespace-nowrap">{lead.id}</td>
-                    <td className="px-4 py-3 font-medium text-gray-800 max-w-[140px] truncate">{lead.nome}</td>
-                    <td className="px-4 py-3 text-gray-600 max-w-[140px] truncate">{lead.empreendimento}</td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{lead.situacao}</span>
+                  <tr key={lead.id} className={cn("border-b border-slate-100 transition-colors hover:bg-blue-50/40", i % 2 === 0 ? "bg-white" : "bg-slate-50/40")}>
+                    <td className="px-3 py-2 text-right text-[11px] font-mono text-gray-400 whitespace-nowrap">{lead.id}</td>
+                    <td className="px-3 py-2 font-medium text-gray-800 text-xs max-w-[160px] truncate">{lead.nome}</td>
+                    <td className="px-3 py-2 text-gray-500 text-xs max-w-[140px] truncate">{lead.empreendimento}</td>
+                    <td className="px-3 py-2">
+                      <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium whitespace-nowrap">{lead.situacao}</span>
                     </td>
-                    <td className="px-4 py-3 text-gray-600 max-w-[140px] truncate text-xs">{lead.corretor.split(" - ")[0]}</td>
-                    <td className="px-4 py-3 text-right text-xs text-gray-500 whitespace-nowrap">{lead.data_cadastro || "—"}</td>
-                    <td className="px-4 py-3 text-right text-xs text-gray-500">{lead.ultima_atualizacao || "—"}</td>
-                    <td className="px-4 py-3 text-right text-xs">
-                      {lead.dias_sem_contato > 0 ? (
-                        <span className={cn("font-medium", lead.dias_sem_contato >= 7 ? "text-red-500" : "text-orange-500")}>
-                          {lead.dias_sem_contato}d
-                        </span>
-                      ) : (
-                        <span className="text-gray-300">—</span>
-                      )}
+                    <td className="px-3 py-2 text-gray-500 text-xs max-w-[130px] truncate">{lead.corretor.split(" - ")[0]}</td>
+                    <td className="px-3 py-2 text-right text-[11px] text-gray-400 whitespace-nowrap font-mono">{formatDate(lead.data_cadastro)}</td>
+                    <td className="px-3 py-2 text-right text-[11px] text-gray-400 whitespace-nowrap font-mono">{formatDate(lead.ultima_atualizacao)}</td>
+                    <td className="px-3 py-2 text-right">
+                      {lead.dias_sem_contato > 0 ? urgencyBadge(lead.dias_sem_contato) : <span className="text-gray-300 text-xs">—</span>}
                     </td>
                   </tr>
                 ))}
@@ -223,32 +225,39 @@ export default function StuckLeadsTable({ leads, loading, threshold = 3, onThres
               <span className="text-xs text-gray-500">
                 {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} de {filtered.length}
               </span>
-              <div className="flex gap-1">
+              <div className="flex items-center gap-1">
                 <button
                   onClick={() => setPage(Math.max(0, page - 1))}
                   disabled={page === 0}
                   className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 disabled:opacity-30 transition-colors"
                 >
-                  <ChevronUp className="w-3.5 h-3.5 rotate-[-90deg]" />
+                  <ChevronLeft className="w-3.5 h-3.5 text-gray-600" />
                 </button>
-                {Array.from({ length: Math.min(pages, 5) }, (_, i) => i).map((i) => (
-                  <button
-                    key={i}
-                    onClick={() => setPage(i)}
-                    className={cn(
-                      "w-7 h-7 flex items-center justify-center rounded-lg text-xs transition-colors",
-                      page === i ? "bg-blue-600 text-white font-semibold" : "hover:bg-gray-100 text-gray-600"
-                    )}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
+                {(() => {
+                  const window = 5;
+                  const half = Math.floor(window / 2);
+                  let start = Math.max(0, page - half);
+                  const end = Math.min(pages, start + window);
+                  start = Math.max(0, end - window);
+                  return Array.from({ length: end - start }, (_, i) => start + i).map((i) => (
+                    <button
+                      key={i}
+                      onClick={() => setPage(i)}
+                      className={cn(
+                        "w-7 h-7 flex items-center justify-center rounded-lg text-xs transition-colors",
+                        page === i ? "bg-blue-600 text-white font-semibold" : "hover:bg-gray-100 text-gray-600"
+                      )}
+                    >
+                      {i + 1}
+                    </button>
+                  ));
+                })()}
                 <button
                   onClick={() => setPage(Math.min(pages - 1, page + 1))}
                   disabled={page >= pages - 1}
                   className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 disabled:opacity-30 transition-colors"
                 >
-                  <ChevronDown className="w-3.5 h-3.5 rotate-[-90deg]" />
+                  <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
                 </button>
               </div>
             </div>

@@ -98,12 +98,12 @@ export default function GanhosModal({ empreendimento, dateStart, dateEnd, tipo, 
             </div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-gray-50 border-b border-gray-100 z-10">
+              <thead className="sticky top-0 bg-slate-800 border-b border-slate-700 z-10">
                 <tr>
                   {["ID", "Nome", "Situação", "Corretor", "Origem", "Data Cadastro"].map(h => (
                     <th
                       key={h}
-                      className={`px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide ${
+                      className={`px-4 py-3 text-[11px] font-bold text-slate-300 uppercase tracking-wider ${
                         h === "ID" || h === "Data Cadastro" ? "text-right" : "text-left"
                       }`}
                     >
@@ -114,7 +114,7 @@ export default function GanhosModal({ empreendimento, dateStart, dateEnd, tipo, 
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {leads.map(lead => (
-                  <tr key={lead.id} className="hover:bg-gray-50/50 transition-colors">
+                  <tr key={lead.id} className="border-b border-slate-100 hover:bg-blue-50/40 transition-colors">
                     <td className="px-4 py-2.5 text-right text-xs font-mono text-gray-400 whitespace-nowrap">{lead.id}</td>
                     <td className="px-4 py-2.5 font-medium text-gray-800 max-w-[180px]">
                       <div className="flex items-center gap-1.5 truncate">

@@ -22,18 +22,18 @@ type SortKey = keyof MergedData;
 type SortDir = "asc" | "desc";
 
 const COLUMNS = [
-  { key: "empreendimento" as SortKey, label: "Empreendimento", className: "text-left" },
-  { key: "meta_spend" as SortKey, label: "Investimento", className: "text-right" },
-  { key: "meta_impressions" as SortKey, label: "Impressões", className: "text-right" },
-  { key: "meta_clicks" as SortKey, label: "Cliques", className: "text-right" },
-  { key: "meta_ctr" as SortKey, label: "CTR", className: "text-right" },
-  { key: "meta_leads" as SortKey, label: "Leads Meta", className: "text-right" },
-  { key: "meta_cpl" as SortKey, label: "CPL Meta", className: "text-right" },
-  { key: "meta_cpm" as SortKey, label: "CPM", className: "text-right" },
-  { key: "crm_leads" as SortKey, label: "Leads CRM", className: "text-right" },
-  { key: "crm_atendimento" as SortKey, label: "Atendimento", className: "text-right" },
-  { key: "crm_reserva" as SortKey, label: "Reserva", className: "text-right" },
-  { key: "crm_ganhos" as SortKey, label: "Ganhos", className: "text-right" },
+  { key: "empreendimento" as SortKey, label: "Empreendimento", title: "Empreendimento", className: "text-left" },
+  { key: "meta_spend" as SortKey, label: "Invest.", title: "Investimento", className: "text-right" },
+  { key: "meta_impressions" as SortKey, label: "Impressões", title: "Impressões", className: "text-right" },
+  { key: "meta_clicks" as SortKey, label: "Cliques", title: "Cliques", className: "text-right" },
+  { key: "meta_ctr" as SortKey, label: "CTR", title: "CTR", className: "text-right" },
+  { key: "meta_leads" as SortKey, label: "Leads Meta", title: "Leads Meta Ads", className: "text-right" },
+  { key: "meta_cpl" as SortKey, label: "CPL", title: "CPL Meta Ads", className: "text-right" },
+  { key: "meta_cpm" as SortKey, label: "CPM", title: "CPM", className: "text-right" },
+  { key: "crm_leads" as SortKey, label: "Leads CRM", title: "Leads CRM", className: "text-right" },
+  { key: "crm_atendimento" as SortKey, label: "Atend.", title: "Atendimento", className: "text-right" },
+  { key: "crm_reserva" as SortKey, label: "Reserva", title: "Reserva", className: "text-right" },
+  { key: "crm_ganhos" as SortKey, label: "Ganhos", title: "Ganhos", className: "text-right" },
 ];
 
 export default function MergedTable({ data, loading, dateStart = "", dateEnd = "" }: Props) {
@@ -104,22 +104,23 @@ export default function MergedTable({ data, loading, dateStart = "", dateEnd = "
 
   return (
     <>
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-2xl ring-1 ring-slate-200 shadow-sm overflow-hidden">
       <div className="p-5 border-b border-gray-50">
         <h3 className="font-semibold text-gray-800">Desempenho por Empreendimento</h3>
         <p className="text-xs text-gray-500 mt-0.5">Meta Ads + CRM combinados</p>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-xs">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-100">
+            <tr className="bg-slate-800">
               {COLUMNS.map((col) => (
                 <th
                   key={col.key}
                   className={cn(
-                    "px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide cursor-pointer hover:text-gray-700 select-none whitespace-nowrap",
+                    "px-3 py-2 text-[10px] font-bold text-slate-300 uppercase tracking-wider cursor-pointer hover:bg-slate-700 select-none whitespace-nowrap transition-colors",
                     col.className
                   )}
+                  title={col.title}
                   onClick={() => handleSort(col.key)}
                 >
                   <div className={cn("flex items-center gap-1", col.className.includes("right") ? "justify-end" : "")}>
@@ -139,8 +140,8 @@ export default function MergedTable({ data, loading, dateStart = "", dateEnd = "
               <tr
                 key={row.empreendimento}
                 className={cn(
-                  "transition-colors hover:bg-blue-50/40",
-                  i % 2 === 0 ? "bg-white" : "bg-gray-100"
+                  "border-b border-slate-100 transition-colors hover:bg-blue-50/40",
+                  i % 2 === 0 ? "bg-white" : "bg-slate-50/40"
                 )}
               >
                 {COLUMNS.map((col) => {
@@ -149,7 +150,7 @@ export default function MergedTable({ data, loading, dateStart = "", dateEnd = "
                     <td
                       key={col.key}
                       className={cn(
-                        "px-4 py-3 whitespace-nowrap",
+                        "px-3 py-2 whitespace-nowrap",
                         col.className,
                         getGainColor(col.key, row[col.key])
                       )}
@@ -172,14 +173,14 @@ export default function MergedTable({ data, loading, dateStart = "", dateEnd = "
             ))}
           </tbody>
           <tfoot>
-            <tr className="bg-gray-50 border-t-2 border-gray-200 font-semibold">
-              <td className="px-4 py-3 text-gray-800">TOTAL</td>
+            <tr className="bg-slate-800 border-t-2 border-slate-700 font-semibold">
+              <td className="px-3 py-2 text-slate-200 text-xs">TOTAL</td>
               {COLUMNS.slice(1).map((col) => {
                 const total = data.reduce((sum, r) => sum + (typeof r[col.key] === "number" ? Number(r[col.key]) : 0), 0);
                 const avg = data.length > 0 ? total / data.length : 0;
                 const useAvg = col.key === "meta_ctr" || col.key === "meta_cpl" || col.key === "meta_cpc" || col.key === "meta_cpm";
                 return (
-                  <td key={col.key} className={cn("px-4 py-3 text-gray-800", col.className)}>
+                  <td key={col.key} className={cn("px-3 py-2 text-slate-200 text-xs", col.className)}>
                     {formatCell(col.key, useAvg ? avg : total)}
                   </td>
                 );

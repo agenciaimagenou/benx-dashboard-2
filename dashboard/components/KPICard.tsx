@@ -9,84 +9,84 @@ interface Props {
   subtitle?: string;
   icon: LucideIcon;
   color?: "blue" | "green" | "purple" | "orange" | "red" | "teal";
-  trend?: number; // percentage change
+  trend?: number;
   loading?: boolean;
 }
 
 const colorMap = {
-  blue: {
-    bg: "bg-blue-50",
-    icon: "bg-blue-100 text-blue-600",
-    text: "text-blue-600",
-    border: "border-blue-100",
-  },
-  green: {
-    bg: "bg-emerald-50",
-    icon: "bg-emerald-100 text-emerald-600",
-    text: "text-emerald-600",
-    border: "border-emerald-100",
-  },
-  purple: {
-    bg: "bg-violet-50",
-    icon: "bg-violet-100 text-violet-600",
-    text: "text-violet-600",
-    border: "border-violet-100",
-  },
-  orange: {
-    bg: "bg-orange-50",
-    icon: "bg-orange-100 text-orange-600",
-    text: "text-orange-600",
-    border: "border-orange-100",
-  },
-  red: {
-    bg: "bg-red-50",
-    icon: "bg-red-100 text-red-600",
-    text: "text-red-600",
-    border: "border-red-100",
-  },
-  teal: {
-    bg: "bg-teal-50",
-    icon: "bg-teal-100 text-teal-600",
-    text: "text-teal-600",
-    border: "border-teal-100",
-  },
+  blue:   { bar: "from-blue-500 to-blue-400",      icon: "from-blue-600 to-blue-400",      ring: "ring-blue-100" },
+  green:  { bar: "from-emerald-500 to-emerald-400", icon: "from-emerald-600 to-emerald-400", ring: "ring-emerald-100" },
+  purple: { bar: "from-violet-500 to-violet-400",   icon: "from-violet-600 to-violet-400",   ring: "ring-violet-100" },
+  orange: { bar: "from-orange-500 to-amber-400",    icon: "from-orange-600 to-amber-400",    ring: "ring-orange-100" },
+  red:    { bar: "from-rose-500 to-red-400",         icon: "from-rose-600 to-red-400",         ring: "ring-rose-100" },
+  teal:   { bar: "from-teal-500 to-cyan-400",        icon: "from-teal-600 to-cyan-400",        ring: "ring-teal-100" },
 };
 
 export default function KPICard({ title, value, subtitle, icon: Icon, color = "blue", trend, loading }: Props) {
-  const colors = colorMap[color];
+  const c = colorMap[color];
 
   if (loading) {
     return (
-      <div className={cn("bg-white rounded-2xl p-5 border shadow-sm animate-pulse overflow-hidden min-w-0", colors.border)}>
-        <div className="flex items-center justify-between mb-3">
-          <div className="h-3 bg-gray-200 rounded w-24" />
-          <div className={cn("w-10 h-10 rounded-xl", colors.icon)} />
+      <div className="bg-white rounded-xl overflow-hidden shadow-sm ring-1 ring-gray-100 min-w-0">
+        <div className="h-1 w-full bg-gray-200 animate-pulse" />
+        <div className="p-4 animate-pulse space-y-3">
+          <div className="flex justify-between items-center">
+            <div className="h-3 bg-gray-200 rounded w-24" />
+            <div className="w-9 h-9 bg-gray-200 rounded-xl" />
+          </div>
+          <div className="h-7 bg-gray-200 rounded w-28" />
+          <div className="h-3 bg-gray-100 rounded w-20" />
         </div>
-        <div className="h-7 bg-gray-200 rounded w-32 mb-1" />
-        <div className="h-3 bg-gray-100 rounded w-20" />
       </div>
     );
   }
 
   return (
-    <div className={cn("bg-white rounded-2xl p-5 border shadow-sm hover:shadow-md transition-shadow overflow-hidden min-w-0", colors.border)}>
-      <div className="flex items-center justify-between mb-3 gap-2">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide truncate">{title}</p>
-        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0", colors.icon)}>
-          <Icon className="w-5 h-5" />
-        </div>
-      </div>
-      <p className={cn("text-lg xl:text-xl 2xl:text-2xl font-bold leading-tight break-words", colors.text)}>{value}</p>
-      <div className="flex items-center gap-2 mt-1">
-        {subtitle && <p className="text-xs text-gray-500 truncate">{subtitle}</p>}
-        {trend !== undefined && (
-          <div className={cn("flex items-center gap-0.5 text-xs font-medium",
-            trend > 0 ? "text-emerald-600" : trend < 0 ? "text-red-500" : "text-gray-400"
+    <div className={cn(
+      "bg-white rounded-xl overflow-hidden shadow-sm ring-1 hover:shadow-md transition-all duration-300 min-w-0 group",
+      c.ring
+    )}>
+      {/* Gradient accent bar */}
+      <div className={cn("h-1 w-full bg-gradient-to-r", c.bar)} />
+
+      <div className="p-4">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-3 gap-2">
+          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest leading-tight pt-0.5 truncate">
+            {title}
+          </p>
+          <div className={cn(
+            "w-9 h-9 rounded-xl bg-gradient-to-br flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-110 transition-transform duration-300",
+            c.icon
           )}>
-            {trend > 0 ? <TrendingUp className="w-3 h-3" /> : trend < 0 ? <TrendingDown className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
-            <span>{Math.abs(trend).toFixed(1)}%</span>
+            <Icon className="w-4 h-4 text-white" />
           </div>
-        )}
+        </div>
+
+        {/* Value */}
+        <p className="text-xl font-extrabold text-gray-900 leading-tight truncate">
+          {value}
+        </p>
+
+        {/* Footer */}
+        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+          {subtitle && (
+            <p className="text-xs text-gray-400 truncate">{subtitle}</p>
+          )}
+          {trend !== undefined && (
+            <span className={cn(
+              "inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0",
+              trend > 0  ? "bg-emerald-50 text-emerald-600" :
+              trend < 0  ? "bg-red-50 text-red-500" :
+                           "bg-gray-100 text-gray-400"
+            )}>
+              {trend > 0 ? <TrendingUp className="w-2.5 h-2.5" />
+               : trend < 0 ? <TrendingDown className="w-2.5 h-2.5" />
+               : <Minus className="w-2.5 h-2.5" />}
+              {Math.abs(trend).toFixed(1)}%
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

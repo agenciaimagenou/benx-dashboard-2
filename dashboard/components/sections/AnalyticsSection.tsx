@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Filter } from "lucide-react";
+import { Filter, Users, Clock, AlertTriangle, AlertCircle, Timer } from "lucide-react";
 import { formatNumber, normalizeStr, findBestMatch } from "@/lib/utils";
+import KPICard from "@/components/KPICard";
 
 function matchesAccount(empName: string, keys: string[]): boolean {
   const normEmp = normalizeStr(empName);
@@ -245,7 +246,7 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
   return (
     <div className="space-y-6">
       {/* Filter bar */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-3 flex flex-wrap items-center gap-3">
+      <div className="bg-white rounded-2xl ring-1 ring-slate-200 shadow-sm px-5 py-3 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">
           <Filter className="w-3.5 h-3.5" />
           Filtros
@@ -281,41 +282,46 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
 
       {/* Stuck KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-        <div className="bg-white rounded-2xl border border-blue-100 shadow-sm p-4">
-          <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-2">Total CRM</p>
-          <p className="text-lg xl:text-xl 2xl:text-2xl font-bold text-blue-700 break-words">
-            {loading ? "—" : formatNumber(displayTotal)}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">leads no período</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-yellow-100 shadow-sm p-4">
-          <p className="text-xs font-semibold text-yellow-600 uppercase tracking-wide mb-2">Parados +3 dias</p>
-          <p className="text-lg xl:text-xl 2xl:text-2xl font-bold text-yellow-600 break-words">
-            {resumo ? formatNumber(resumo.total_parados_3d) : "—"}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">leads sem movimento</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-orange-100 shadow-sm p-4">
-          <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-2">Parados +7 dias</p>
-          <p className="text-lg xl:text-xl 2xl:text-2xl font-bold text-orange-600 break-words">
-            {resumo ? formatNumber(resumo.total_parados_7d) : "—"}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">atenção necessária</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-red-100 shadow-sm p-4">
-          <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-2">Parados +15 dias</p>
-          <p className="text-lg xl:text-xl 2xl:text-2xl font-bold text-red-600 break-words">
-            {resumo ? formatNumber(resumo.total_parados_15d) : "—"}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">risco de perda</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Média sem contato</p>
-          <p className="text-lg xl:text-xl 2xl:text-2xl font-bold text-gray-700 break-words">
-            {resumo ? `${resumo.avg_dias_sem_contato}d` : "—"}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">por lead ativo</p>
-        </div>
+        <KPICard
+          title="Total CRM"
+          value={loading ? "—" : formatNumber(displayTotal)}
+          subtitle="leads no período"
+          icon={Users}
+          color="blue"
+          loading={loading}
+        />
+        <KPICard
+          title="Parados +3 dias"
+          value={resumo ? formatNumber(resumo.total_parados_3d) : "—"}
+          subtitle="leads sem movimento"
+          icon={Clock}
+          color="orange"
+          loading={loading}
+        />
+        <KPICard
+          title="Parados +7 dias"
+          value={resumo ? formatNumber(resumo.total_parados_7d) : "—"}
+          subtitle="atenção necessária"
+          icon={AlertTriangle}
+          color="orange"
+          loading={loading}
+        />
+        <KPICard
+          title="Parados +15 dias"
+          value={resumo ? formatNumber(resumo.total_parados_15d) : "—"}
+          subtitle="risco de perda"
+          icon={AlertCircle}
+          color="red"
+          loading={loading}
+        />
+        <KPICard
+          title="Média sem contato"
+          value={resumo ? `${resumo.avg_dias_sem_contato}d` : "—"}
+          subtitle="por lead ativo"
+          icon={Timer}
+          color="purple"
+          loading={loading}
+        />
       </div>
 
       {/* Tempo por situação */}
