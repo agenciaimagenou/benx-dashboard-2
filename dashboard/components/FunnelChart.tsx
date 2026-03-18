@@ -1,6 +1,5 @@
 "use client";
 
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { formatNumber } from "@/lib/utils";
 
 interface Props {
@@ -8,79 +7,118 @@ interface Props {
   loading?: boolean;
 }
 
-const COLORS = [
-  "#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444",
-  "#06b6d4", "#84cc16", "#f97316", "#ec4899", "#6366f1",
-  "#14b8a6", "#a855f7",
+const FUNNEL_STAGES = [
+  { key: "Lead Recebido",       color: "#3b82f6", bg: "#eff6ff" },
+  { key: "Tentativa de Contato",color: "#8b5cf6", bg: "#f5f3ff" },
+  { key: "Em Atendimento",      color: "#06b6d4", bg: "#ecfeff" },
+  { key: "Visita Agendada",     color: "#0ea5e9", bg: "#f0f9ff" },
+  { key: "Visita Realizada",    color: "#10b981", bg: "#ecfdf5" },
+  { key: "Proposta",            color: "#f59e0b", bg: "#fffbeb" },
+  { key: "Com Reserva",         color: "#a855f7", bg: "#faf5ff" },
+  { key: "Venda Realizada",     color: "#22c55e", bg: "#f0fdf4" },
 ];
-
-const CustomTooltip = ({ active, payload }: any) => {
-  if (active && payload && payload.length) {
-    const item = payload[0];
-    return (
-      <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-sm">
-        <p className="font-semibold text-gray-700">{item.name}</p>
-        <p className="text-gray-600">{formatNumber(item.value)} leads</p>
-        <p className="text-gray-500">{item.payload.percent?.toFixed(1)}%</p>
-      </div>
-    );
-  }
-  return null;
-};
 
 export default function FunnelChart({ porSituacao, loading }: Props) {
   if (loading) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
         <div className="h-5 bg-gray-200 rounded w-40 mb-4 animate-pulse" />
-        <div className="h-64 bg-gray-100 rounded-full animate-pulse mx-auto max-w-[200px]" />
+        <div className="space-y-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-10 bg-gray-100 rounded animate-pulse" style={{ width: `${100 - i * 12}%`, margin: "0 auto" }} />
+          ))}
+        </div>
       </div>
     );
   }
 
-  const total = Object.values(porSituacao).reduce((a, b) => a + b, 0);
+  const stages = FUNNEL_STAGES.filter(s => (porSituacao[s.key] ?? 0) > 0);
 
-  const chartData = Object.entries(porSituacao)
-    .map(([name, value]) => ({ name, value, percent: (value / total) * 100 }))
-    .sort((a, b) => b.value - a.value);
+  // Others: situations not in FUNNEL_STAGES
+  const funnelKeys = new Set(FUNNEL_STAGES.map(s => s.key));
+  const othersTotal = Object.entries(porSituacao)
+    .filter(([k]) => !funnelKeys.has(k))
+    .reduce((s, [, v]) => s + v, 0);
+
+  const total = Object.values(porSituacao).reduce((a, b) => a + b, 0);
+  const maxCount = stages.length > 0 ? Math.max(...stages.map(s => porSituacao[s.key] ?? 0)) : 1;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
       <h3 className="font-semibold text-gray-800 mb-1">Funil CRM por Situação</h3>
-      <p className="text-xs text-gray-500 mb-4">Distribuição de {formatNumber(total)} leads</p>
-      <ResponsiveContainer width="100%" height={310}>
-        <PieChart>
-          <Pie
-            data={chartData}
-            cx="50%"
-            cy="45%"
-            innerRadius={60}
-            outerRadius={100}
-            paddingAngle={2}
-            dataKey="value"
-          >
-            {chartData.map((_, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-            ))}
-          </Pie>
-          <Tooltip content={<CustomTooltip />} />
-          <Legend
-            wrapperStyle={{ fontSize: 11 }}
-            formatter={(value) => <span className="text-gray-600">{value}</span>}
-          />
-        </PieChart>
-      </ResponsiveContainer>
+      <p className="text-xs text-gray-500 mb-6">{formatNumber(total)} leads no período</p>
 
-      {/* Ranked list */}
-      <div className="mt-2 space-y-1.5">
-        {chartData.map((item, i) => (
-          <div key={item.name} className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: COLORS[i] }} />
-            <span className="text-xs text-gray-600 flex-1 truncate">{item.name}</span>
-            <span className="text-xs font-semibold text-gray-700">{formatNumber(item.value)}</span>
-            <span className="text-xs text-gray-400 w-10 text-right">{item.percent.toFixed(1)}%</span>
+      <div className="space-y-2">
+        {stages.map((stage, i) => {
+          const count = porSituacao[stage.key] ?? 0;
+          const pct = total > 0 ? (count / total) * 100 : 0;
+          const barWidth = maxCount > 0 ? (count / maxCount) * 100 : 0;
+          const prevCount = i > 0 ? (porSituacao[stages[i - 1].key] ?? 0) : null;
+          const convRate = prevCount && prevCount > 0 ? (count / prevCount) * 100 : null;
+
+          return (
+            <div key={stage.key} className="flex items-center gap-3">
+              {/* Stage name */}
+              <div className="w-36 text-right flex-shrink-0">
+                <span className="text-xs font-medium text-gray-600 truncate block">{stage.key}</span>
+              </div>
+
+              {/* Bar */}
+              <div className="flex-1 relative h-8 bg-gray-50 rounded-lg overflow-hidden">
+                <div
+                  className="h-full rounded-lg transition-all duration-500 flex items-center justify-end pr-3"
+                  style={{ width: `${barWidth}%`, backgroundColor: stage.color, minWidth: count > 0 ? "2rem" : 0 }}
+                >
+                  <span className="text-xs font-bold text-white whitespace-nowrap">
+                    {formatNumber(count)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Percentage of total */}
+              <div className="w-12 text-right flex-shrink-0">
+                <span className="text-xs text-gray-500">{pct.toFixed(1)}%</span>
+              </div>
+
+              {/* Conversion from previous stage */}
+              <div className="w-14 flex-shrink-0">
+                {convRate !== null ? (
+                  <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${convRate >= 50 ? "bg-green-50 text-green-600" : convRate >= 20 ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-500"}`}>
+                    ↓{convRate.toFixed(0)}%
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-300">—</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Others row */}
+        {othersTotal > 0 && (
+          <div className="flex items-center gap-3 pt-1 border-t border-gray-100 mt-1">
+            <div className="w-36 text-right flex-shrink-0">
+              <span className="text-xs text-gray-400 truncate block">Outros</span>
+            </div>
+            <div className="flex-1 relative h-8 bg-gray-50 rounded-lg overflow-hidden">
+              <div
+                className="h-full rounded-lg flex items-center justify-end pr-3"
+                style={{ width: `${(othersTotal / maxCount) * 100}%`, backgroundColor: "#94a3b8", minWidth: "2rem" }}
+              >
+                <span className="text-xs font-bold text-white">{formatNumber(othersTotal)}</span>
+              </div>
+            </div>
+            <div className="w-12 text-right flex-shrink-0">
+              <span className="text-xs text-gray-400">{total > 0 ? ((othersTotal / total) * 100).toFixed(1) : "0.0"}%</span>
+            </div>
+            <div className="w-14 flex-shrink-0" />
           </div>
-        ))}
+        )}
+      </div>
+
+      {/* Legend */}
+      <div className="mt-5 pt-4 border-t border-gray-50 flex items-center gap-4 text-xs text-gray-400 flex-wrap">
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400 inline-block" /> ↓% = conversão da etapa anterior</span>
       </div>
     </div>
   );
