@@ -57,7 +57,7 @@ export default function FunnelChart({ porSituacao, loading, compact }: Props) {
       <div className={compact ? "flex justify-center" : "w-full overflow-x-auto"}>
         <svg
           viewBox={`0 0 ${SVG_W} ${svgH}`}
-          width={compact ? 420 : "100%"}
+          width={compact ? 650 : "100%"}
           style={{ display: "block" }}
         >
           {stages.map((stage, i) => {
