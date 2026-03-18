@@ -62,10 +62,6 @@ export default function FunnelChart({ porSituacao, loading }: Props) {
           {stages.map((stage, i) => {
             const count = porSituacao[stage.key] ?? 0;
             const pct   = total > 0 ? ((count / total) * 100).toFixed(1) : "0.0";
-            const prevCount = i > 0 ? (porSituacao[stages[i - 1].key] ?? 0) : null;
-            const conv  = prevCount && prevCount > 0
-              ? ((count / prevCount) * 100).toFixed(0) + "%"
-              : null;
 
             const topW = lerp(MAX_W, MIN_W, i / N);
             const botW = lerp(MAX_W, MIN_W, (i + 1) / N);
@@ -81,8 +77,8 @@ export default function FunnelChart({ porSituacao, loading }: Props) {
               `${botX},${y + STAGE_H}`,
             ].join(" ");
 
-            // font size: smaller for narrow bottom stages
-            const fs = Math.max(10, Math.min(13, topW / 40));
+            // font size scales with available width but with larger minimum
+            const fs = Math.max(12, Math.min(15, topW / 35));
 
             return (
               <g key={stage.key}>
@@ -91,29 +87,28 @@ export default function FunnelChart({ porSituacao, loading }: Props) {
                 {/* Stage label */}
                 <text
                   x={SVG_W / 2}
-                  y={midY - 9}
+                  y={midY - 10}
                   textAnchor="middle"
                   dominantBaseline="middle"
                   fill="white"
                   fontSize={fs}
-                  fontWeight="600"
+                  fontWeight="700"
                   style={{ userSelect: "none" }}
                 >
                   {stage.key.toUpperCase()}
                 </text>
 
-                {/* Count + % */}
+                {/* Count + % of total */}
                 <text
                   x={SVG_W / 2}
-                  y={midY + 9}
+                  y={midY + 11}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fill="rgba(255,255,255,0.9)"
-                  fontSize={Math.max(9, fs - 1)}
+                  fill="rgba(255,255,255,0.92)"
+                  fontSize={Math.max(11, fs - 2)}
                   style={{ userSelect: "none" }}
                 >
                   {formatNumber(count)} leads · {pct}%
-                  {conv ? `  ↓${conv}` : ""}
                 </text>
               </g>
             );
