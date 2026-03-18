@@ -698,7 +698,7 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
                       <td className="px-4 py-3 font-medium text-gray-800 max-w-[200px] truncate">{l.nome}</td>
                       <td className="px-4 py-3 text-xs text-gray-600 max-w-[160px] truncate">{l.corretor}</td>
                       <td className="px-4 py-3 text-xs text-gray-500">{l.origem}</td>
-                      <td className="px-4 py-3 text-right text-xs text-gray-500 whitespace-nowrap">{l.data_cadastro ?? "—"}</td>
+                      <td className="px-4 py-3 text-right text-xs text-gray-500 whitespace-nowrap">{l.data_cadastro ? l.data_cadastro.split("T")[0] : "—"}</td>
                     </tr>
                   ))}
                   {sitModal.leads.length === 0 && (
@@ -759,7 +759,7 @@ export default function CRMSection({ crmData, metaData, loading, accountCrmKeys,
                       <td className="px-4 py-3 font-medium text-gray-800 max-w-[200px] truncate">{l.nome}</td>
                       <td className="px-4 py-3 text-xs text-gray-600 max-w-[160px] truncate">{l.corretor}</td>
                       <td className="px-4 py-3 text-xs text-gray-500">{l.origem}</td>
-                      <td className="px-4 py-3 text-right text-xs text-gray-500 whitespace-nowrap">{l.data_cadastro ?? "—"}</td>
+                      <td className="px-4 py-3 text-right text-xs text-gray-500 whitespace-nowrap">{l.data_cadastro ? l.data_cadastro.split("T")[0] : "—"}</td>
                     </tr>
                   ))}
                   {vendaModal.leads.length === 0 && (
