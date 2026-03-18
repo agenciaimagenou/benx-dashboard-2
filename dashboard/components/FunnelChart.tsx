@@ -19,8 +19,8 @@ const FUNNEL_STAGES = [
 ];
 
 const SVG_W   = 600;
-const STAGE_H = 54;
-const GAP     = 3;
+const STAGE_H = 38;
+const GAP     = 2;
 const MAX_W   = 580;
 const MIN_W   = 80;
 
@@ -77,8 +77,7 @@ export default function FunnelChart({ porSituacao, loading }: Props) {
               `${botX},${y + STAGE_H}`,
             ].join(" ");
 
-            // font size scales with available width but with larger minimum
-            const fs = Math.max(12, Math.min(15, topW / 35));
+            const fs = Math.max(10, Math.min(12, topW / 45));
 
             return (
               <g key={stage.key}>
@@ -87,7 +86,7 @@ export default function FunnelChart({ porSituacao, loading }: Props) {
                 {/* Stage label */}
                 <text
                   x={SVG_W / 2}
-                  y={midY - 10}
+                  y={midY - 7}
                   textAnchor="middle"
                   dominantBaseline="middle"
                   fill="white"
@@ -101,7 +100,7 @@ export default function FunnelChart({ porSituacao, loading }: Props) {
                 {/* Count + % of total */}
                 <text
                   x={SVG_W / 2}
-                  y={midY + 11}
+                  y={midY + 8}
                   textAnchor="middle"
                   dominantBaseline="middle"
                   fill="rgba(255,255,255,0.92)"
