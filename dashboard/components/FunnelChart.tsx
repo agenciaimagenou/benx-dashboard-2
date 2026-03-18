@@ -5,6 +5,7 @@ import { formatNumber } from "@/lib/utils";
 interface Props {
   porSituacao: Record<string, number>;
   loading?: boolean;
+  compact?: boolean;
 }
 
 const FUNNEL_STAGES = [
@@ -28,7 +29,7 @@ function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
 }
 
-export default function FunnelChart({ porSituacao, loading }: Props) {
+export default function FunnelChart({ porSituacao, loading, compact }: Props) {
   if (loading) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
@@ -53,10 +54,10 @@ export default function FunnelChart({ porSituacao, loading }: Props) {
       <h3 className="font-semibold text-gray-800 mb-1">Funil CRM por Situação</h3>
       <p className="text-xs text-gray-500 mb-5">{formatNumber(total)} leads no período</p>
 
-      <div className="w-full overflow-x-auto">
+      <div className={compact ? "flex justify-center" : "w-full overflow-x-auto"}>
         <svg
           viewBox={`0 0 ${SVG_W} ${svgH}`}
-          width="100%"
+          width={compact ? 420 : "100%"}
           style={{ display: "block" }}
         >
           {stages.map((stage, i) => {

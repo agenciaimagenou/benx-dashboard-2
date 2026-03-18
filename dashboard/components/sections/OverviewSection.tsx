@@ -128,7 +128,7 @@ export default function OverviewSection({ metaData, crmData, mergedData, googleD
 
       {/* Charts */}
       <SpendLeadsChart data={mergedData} googleData={googleData} loading={loading} />
-      <FunnelChart porSituacao={crmData?.por_situacao ?? {}} loading={loading} />
+      <FunnelChart porSituacao={crmData?.por_situacao ?? {}} loading={loading} compact />
     </div>
   );
 }
