@@ -162,9 +162,9 @@ function CharactersPanel({ password, showPassword }: { password: string; showPas
   const hidingPass = isTyping || (password.length > 0 && !showPassword);
 
   return (
-    <div className="relative hidden lg:flex flex-col justify-center bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 text-white overflow-hidden">
-      {/* Characters — centered, full height */}
-      <div className="relative z-20 flex items-end justify-center h-full">
+    <div className="relative hidden lg:flex flex-col justify-center bg-white overflow-hidden">
+      {/* Characters — aligned to right edge, close to the form */}
+      <div className="relative z-20 flex items-end justify-end h-full pr-0">
         <div className="relative" style={{ width: 550, height: 400 }}>
 
           {/* Purple — back */}
@@ -345,13 +345,13 @@ function LoginContent() {
       <CharactersPanel password={password} showPassword={showPass} />
 
       {/* Right — login form */}
-      <div className="flex flex-col justify-between p-8 bg-gray-50 min-h-screen">
+      <div className="flex flex-col justify-between pl-10 pr-16 py-8 bg-gray-50 min-h-screen">
         {/* Benx logo top */}
-        <div className="flex justify-center pt-4">
+        <div className="flex justify-start pt-4">
           <Image src="/logo-benx.png" alt="Benx" width={130} height={48} className="object-contain" />
         </div>
 
-        <div className="w-full max-w-[400px] mx-auto">
+        <div className="w-full max-w-[400px]">
           {/* ── LOGIN ── */}
           {mode === "login" && (
             <div>
@@ -477,7 +477,7 @@ function LoginContent() {
         </div>
 
         {/* Imagenou logo bottom */}
-        <div className="flex flex-col items-center gap-1 pb-4">
+        <div className="flex flex-col items-start gap-1 pb-4">
           <p className="text-xs text-gray-400">Desenvolvido por</p>
           <Image src="/logo-imagenou-v2.png" alt="Imagenou" width={110} height={40} className="object-contain opacity-70" />
         </div>
