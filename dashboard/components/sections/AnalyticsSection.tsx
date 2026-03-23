@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Filter, Users, Clock, AlertTriangle, AlertCircle, Timer } from "lucide-react";
+import { Filter, Users, Clock, AlertTriangle, AlertCircle, Timer, XCircle } from "lucide-react";
 import { formatNumber, normalizeStr, findBestMatch } from "@/lib/utils";
 import KPICard from "@/components/KPICard";
 
@@ -243,6 +243,13 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
     return totalLeadsCrm;
   }, [filterImobiliaria, filterOrigens, accountCrmKeys, crmPorOrigem, crmPorOrigemEmp, crmPorImobiliariaEmp, crmPorOrigemImobiliaria, totalLeadsCrm]);
 
+  const totalDescartado = useMemo(() => {
+    if (!data) return 0;
+    // tempo_por_situacao counts unique leads per situation — the most accurate source
+    const entry = data.tempo_por_situacao.find(t => t.situacao === "Descartado");
+    return entry?.count ?? 0;
+  }, [data]);
+
   return (
     <div className="space-y-6">
       {/* Filter bar */}
@@ -281,13 +288,21 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
       </div>
 
       {/* Stuck KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-6 gap-4">
         <KPICard
           title="Total CRM"
           value={loading ? "—" : formatNumber(displayTotal)}
           subtitle="leads no período"
           icon={Users}
           color="blue"
+          loading={loading}
+        />
+        <KPICard
+          title="Total Descartado"
+          value={loading ? "—" : formatNumber(totalDescartado)}
+          subtitle="leads descartados"
+          icon={XCircle}
+          color="red"
           loading={loading}
         />
         <KPICard
@@ -348,6 +363,7 @@ export default function AnalyticsSection({ data, loading, stuckThreshold, onThre
       <DiscardReasonsChart
         data={filteredMotivosDescarte}
         loading={loading}
+        totalLeads={totalDescartado}
       />
     </div>
   );

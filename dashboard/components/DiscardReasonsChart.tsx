@@ -27,6 +27,7 @@ interface MotivoDescarte {
 interface Props {
   data: MotivoDescarte[];
   loading?: boolean;
+  totalLeads?: number;
 }
 
 const RANK_COLORS = [
@@ -39,7 +40,7 @@ function barColor(i: number) {
   return RANK_COLORS[Math.min(i, RANK_COLORS.length - 1)];
 }
 
-export default function DiscardReasonsChart({ data, loading }: Props) {
+export default function DiscardReasonsChart({ data, loading, totalLeads }: Props) {
   const [view, setView] = useState<"chart" | "table">("chart");
   const [filterEmp, setFilterEmp] = useState("Todos");
   const [modal, setModal] = useState<{ title: string; leads: MotivoDescarteLead[] } | null>(null);
@@ -58,8 +59,14 @@ export default function DiscardReasonsChart({ data, loading }: Props) {
 
   const chartData = Object.entries(byMotivo)
     .map(([name, { count, leads }]) => ({ name, value: count, leads }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 12);
+    .sort((a, b) => b.value - a.value);
+
+  // Add "Sem motivo registrado" row for the gap between totalLeads and sum of known motivos
+  const knownTotal = chartData.reduce((s, d) => s + d.value, 0);
+  const semMotivo = (totalLeads ?? 0) - knownTotal;
+  if (semMotivo > 0) {
+    chartData.push({ name: "Sem motivo registrado", value: semMotivo, leads: [] });
+  }
 
   function openModal(name: string) {
     const entry = byMotivo[name];
@@ -76,7 +83,7 @@ export default function DiscardReasonsChart({ data, loading }: Props) {
     );
   }
 
-  const total = chartData.reduce((s, d) => s + d.value, 0);
+  const total = filtered.reduce((s, d) => s + d.count, 0);
 
   return (
     <>
@@ -87,7 +94,7 @@ export default function DiscardReasonsChart({ data, loading }: Props) {
               <XCircle className="w-4 h-4 text-red-500" />
               <div>
                 <h3 className="font-semibold text-gray-800">Motivos de Descarte</h3>
-                <p className="text-xs text-gray-500 mt-0.5">{formatNumber(total)} leads descartados no período · clique em um motivo para ver os leads</p>
+                <p className="text-xs text-gray-500 mt-0.5">{formatNumber(totalLeads ?? total)} leads descartados no período · clique em um motivo para ver os leads</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
