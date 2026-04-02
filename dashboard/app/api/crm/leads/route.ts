@@ -41,12 +41,14 @@ export async function GET(request: NextRequest) {
   const filterOrigens      = origensParam      ? origensParam.split(",").filter(Boolean)      : [];
   const filterUltimaOrigem = ultimaOrigemParam  ? ultimaOrigemParam.split(",").filter(Boolean)  : [];
   const filterImobiliaria  = imobiliariaParam   ? imobiliariaParam.split(",").filter(Boolean)   : [];
+  const metaOnly           = searchParams.get("meta_only")   === "true";
+  const googleOnly         = searchParams.get("google_only") === "true";
 
   if (!empreendimento || !dateStartStr || !dateEndStr) {
     return NextResponse.json({ error: "empreendimento, date_start e date_end são obrigatórios" }, { status: 400 });
   }
 
-  const SELECT = `idlead, situacao, nome, corretor, imobiliaria, empreendimento, empreendimento_primeiro, origem_nome, origem_ultimo, data_cad, reserva, score`;
+  const SELECT = `idlead, situacao, nome, corretor, imobiliaria, empreendimento, empreendimento_primeiro, empreendimento_ultimo, origem, origem_nome, origem_ultimo, data_cad, reserva, score`;
   const PAGE = 1000;
   const allLeads: Record<string, unknown>[] = [];
   let from = 0;
@@ -54,7 +56,7 @@ export async function GET(request: NextRequest) {
     const { data: page, error } = await supabaseAdmin
       .from("leads")
       .select(SELECT)
-      .or(`empreendimento_primeiro.ilike.${empreendimento},empreendimento.ilike.${empreendimento}`)
+      .or(`empreendimento_primeiro.ilike.${empreendimento},empreendimento_ultimo.ilike.${empreendimento},empreendimento.ilike.${empreendimento}`)
       .gte("data_cad", `${dateStartStr}T00:00:00`)
       .lte("data_cad", `${dateEndStr}T23:59:59`)
       .range(from, from + PAGE - 1);
@@ -73,11 +75,27 @@ export async function GET(request: NextRequest) {
     const d = parseBrDate(lead["data_cad"] as string | null);
     if (!d || d < startDate || d > endDate) return false;
 
-    // Empreendimento filter
-    const emp = ((lead["empreendimento_primeiro"] || lead["empreendimento"]) as string) || "";
-    if (emp.toLowerCase().trim() !== empreendimento.toLowerCase().trim()) return false;
+    // Empreendimento filter — match primeiro OR ultimo (same union as CRM route)
+    const empPrimeiro = ((lead["empreendimento_primeiro"] || lead["empreendimento"]) as string) || "";
+    const empUltimo   = (lead["empreendimento_ultimo"] as string) || "";
+    const empMatch = empPrimeiro.toLowerCase().trim() === empreendimento.toLowerCase().trim()
+                  || empUltimo.toLowerCase().trim()   === empreendimento.toLowerCase().trim();
+    if (!empMatch) return false;
 
     // Internal filters
+    if (metaOnly) {
+      const origemNome = String(lead["origem_nome"] || "").trim().toUpperCase();
+      const origemUlt  = String(lead["origem_ultimo"] || "").trim().toUpperCase();
+      const isMeta = origemNome === "FACEBOOK" || origemNome === "INSTAGRAM" || origemUlt === "FB" || origemUlt === "IG";
+      if (!isMeta) return false;
+    }
+    if (googleOnly) {
+      const orig    = String(lead["origem"]        || "").trim().toUpperCase();
+      const origemUlt = String(lead["origem_ultimo"] || "").trim().toUpperCase();
+      const isGoogle = orig === "GO" || orig === "SI" || orig === "OU"
+                    || origemUlt === "GO" || origemUlt === "SI" || origemUlt === "OU";
+      if (!isGoogle) return false;
+    }
     if (filterOrigens.length > 0) {
       const origem = normalizeOrigem(lead["origem_nome"]);
       if (!filterOrigens.includes(origem)) return false;

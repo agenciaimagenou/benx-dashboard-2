@@ -13,6 +13,7 @@ interface Props {
   loading: boolean;
   dateStart?: string;
   dateEnd?: string;
+  reservasRecords?: Record<string, unknown>[];
 }
 
 const TooltipContent = ({ active, payload, label }: any) => {
@@ -37,7 +38,7 @@ const TooltipContent = ({ active, payload, label }: any) => {
   );
 };
 
-export default function MetaAdsSection({ metaData, mergedData, loading, dateStart, dateEnd }: Props) {
+export default function MetaAdsSection({ metaData, mergedData, loading, dateStart, dateEnd, reservasRecords }: Props) {
   const totalSpend = metaData.reduce((s, m) => s + m.total_spend, 0);
   const totalLeads = metaData.reduce((s, m) => s + m.total_leads, 0);
   const totalImpressions = metaData.reduce((s, m) => s + m.total_impressions, 0);
@@ -67,18 +68,25 @@ export default function MetaAdsSection({ metaData, mergedData, loading, dateStar
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
         <KPICard title="Investimento Total" value={formatCurrency(totalSpend)}
           subtitle={`${activeAccounts} contas ativas`}
+          tooltip="Total investido no Meta Ads (Facebook/Instagram) no período, somando todas as contas ativas."
           icon={DollarSign} color="blue" loading={loading} />
         <KPICard title="Impressões" value={formatNumber(totalImpressions)}
+          tooltip="Número total de vezes que os anúncios foram exibidos para usuários no Meta Ads."
           icon={Eye} color="purple" loading={loading} />
         <KPICard title="Cliques" value={formatNumber(totalClicks)}
+          tooltip="Total de cliques nos anúncios do Meta Ads no período selecionado."
           icon={MousePointerClick} color="teal" loading={loading} />
         <KPICard title="Leads (actions)" value={formatNumber(totalLeads)}
           subtitle="action_type: lead"
+          tooltip="Total de leads gerados pelos formulários de lead do Meta Ads (contabilizados como action_type: lead)."
           icon={Users} color="orange" loading={loading} />
         <KPICard title="CPL Médio" value={formatCurrency(avgCpl)}
           subtitle="Investimento / leads"
+          tooltip="Custo médio por lead no Meta Ads: total investido dividido pelo total de leads gerados no período."
           icon={Target} color="red" loading={loading} />
         <KPICard title="CTR Médio" value={formatPercent(avgCtr)}
+          tooltip="Taxa de clique média: percentual de impressões que resultaram em clique nos anúncios do Meta Ads."
+          tooltipAlign="right"
           icon={TrendingUp} color="green" loading={loading} />
       </div>
 
@@ -210,7 +218,7 @@ export default function MetaAdsSection({ metaData, mergedData, loading, dateStar
       </div>
 
       {/* Full merged table */}
-      <MergedTable data={mergedData} loading={loading} dateStart={dateStart} dateEnd={dateEnd} />
+      <MergedTable data={mergedData} loading={loading} dateStart={dateStart} dateEnd={dateEnd} reservasRecords={reservasRecords} />
     </div>
   );
 }

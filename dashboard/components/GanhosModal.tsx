@@ -23,10 +23,12 @@ interface Props {
   filterOrigens?: string[];
   filterUltimaOrigem?: string[];
   filterImobiliaria?: string[];
+  metaOnly?: boolean;
+  googleOnly?: boolean;
   onClose: () => void;
 }
 
-export default function GanhosModal({ empreendimento, dateStart, dateEnd, tipo, filterOrigens, filterUltimaOrigem, filterImobiliaria, onClose }: Props) {
+export default function GanhosModal({ empreendimento, dateStart, dateEnd, tipo, filterOrigens, filterUltimaOrigem, filterImobiliaria, metaOnly, googleOnly, onClose }: Props) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +43,8 @@ export default function GanhosModal({ empreendimento, dateStart, dateEnd, tipo, 
     if (filterOrigens?.length)      params.set("origens",     filterOrigens.join(","));
     if (filterUltimaOrigem?.length) params.set("ultima_origem", filterUltimaOrigem.join(","));
     if (filterImobiliaria?.length)  params.set("imobiliaria",  filterImobiliaria.join(","));
+    if (metaOnly)                   params.set("meta_only",    "true");
+    if (googleOnly)                 params.set("google_only",  "true");
     fetch(`/api/crm/leads?${params}`)
       .then(r => r.json())
       .then(data => {

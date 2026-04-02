@@ -1,12 +1,14 @@
 "use client";
 
-import { LucideIcon, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { LucideIcon, TrendingUp, TrendingDown, Minus, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
   title: string;
   value: string;
   subtitle?: string;
+  tooltip?: string;
+  tooltipAlign?: "left" | "right";
   icon: LucideIcon;
   color?: "blue" | "green" | "purple" | "orange" | "red" | "teal";
   trend?: number;
@@ -22,7 +24,7 @@ const colorMap = {
   teal:   { bar: "from-teal-500 to-cyan-400",        icon: "from-teal-600 to-cyan-400",        ring: "ring-teal-100" },
 };
 
-export default function KPICard({ title, value, subtitle, icon: Icon, color = "blue", trend, loading }: Props) {
+export default function KPICard({ title, value, subtitle, tooltip, tooltipAlign = "left", icon: Icon, color = "blue", trend, loading }: Props) {
   const c = colorMap[color];
 
   if (loading) {
@@ -43,11 +45,11 @@ export default function KPICard({ title, value, subtitle, icon: Icon, color = "b
 
   return (
     <div className={cn(
-      "bg-white rounded-xl overflow-hidden shadow-sm ring-1 hover:shadow-md transition-all duration-300 min-w-0 group",
+      "bg-white rounded-xl shadow-sm ring-1 hover:shadow-md transition-all duration-300 min-w-0 group",
       c.ring
     )}>
       {/* Gradient accent bar */}
-      <div className={cn("h-1 w-full bg-gradient-to-r", c.bar)} />
+      <div className={cn("h-1 w-full bg-gradient-to-r rounded-t-xl", c.bar)} />
 
       <div className="p-4">
         {/* Header */}
@@ -69,7 +71,8 @@ export default function KPICard({ title, value, subtitle, icon: Icon, color = "b
         </p>
 
         {/* Footer */}
-        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+        <div className="flex items-center justify-between gap-1.5 mt-2">
+          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
           {subtitle && (
             <p className="text-xs text-gray-400 truncate">{subtitle}</p>
           )}
@@ -85,6 +88,18 @@ export default function KPICard({ title, value, subtitle, icon: Icon, color = "b
                : <Minus className="w-2.5 h-2.5" />}
               {Math.abs(trend).toFixed(1)}%
             </span>
+          )}
+          </div>
+          {tooltip && (
+            <div className="relative flex-shrink-0 group/info">
+              <Info className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-help transition-colors" />
+              <div className={cn("absolute bottom-full mb-2 z-[9999] hidden group-hover/info:block w-56 pointer-events-none", tooltipAlign === "right" ? "right-0" : "left-0")}>
+                <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl leading-relaxed text-center">
+                  {tooltip}
+                  <div className={cn("absolute top-full border-4 border-transparent border-t-gray-900", tooltipAlign === "right" ? "right-3" : "left-3")} />
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>

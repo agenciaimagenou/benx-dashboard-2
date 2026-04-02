@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { formatNumber } from "@/lib/utils";
 
 interface Props {
@@ -48,6 +49,8 @@ function lerp(a: number, b: number, t: number) {
 }
 
 export default function FunnelChart({ porSituacao, loading, compact }: Props) {
+  const [view, setView] = useState<"funnel" | "bar">("funnel");
+
   if (loading) {
     return (
       <div className="bg-white rounded-2xl ring-1 ring-slate-200 shadow-sm p-6">
@@ -67,14 +70,82 @@ export default function FunnelChart({ porSituacao, loading, compact }: Props) {
   const total    = Object.values(porSituacao).reduce((a, b) => a + b, 0);
   const svgH = N * (STAGE_H + GAP) + 4;
 
+  // All stages for bar chart — same order as funnel, extras at end
+  const allBarStages = [
+    ...FUNNEL_STAGES.map(s => ({ key: s.key, from: s.from, to: s.to, count: porSituacao[s.key] ?? 0 })),
+    ...Object.entries(porSituacao)
+      .filter(([k]) => !FUNNEL_STAGES.find(s => s.key === k))
+      .map(([k, v]) => ({ key: k, from: "#94a3b8", to: "#64748b", count: v })),
+  ].filter(s => s.count > 0);
+
+  const maxBarCount = Math.max(...allBarStages.map(s => s.count), 1);
+
   return (
     <div className="bg-white rounded-2xl ring-1 ring-slate-200 shadow-sm p-6">
-      <div className="mb-5">
-        <h3 className="font-bold text-gray-900 text-sm">Funil CRM por Situação</h3>
-        <p className="text-xs text-slate-400 mt-0.5">{formatNumber(total)} leads no período</p>
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <div>
+          <h3 className="font-bold text-gray-900 text-sm">Funil CRM por Situação</h3>
+          <p className="text-xs text-slate-400 mt-0.5">{formatNumber(total)} leads no período</p>
+          <p className="text-xs text-slate-400 mt-0.5">Dados filtrados geral da aba de leads do CV CRM</p>
+        </div>
+        {!compact && (
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden flex-shrink-0">
+            <button onClick={() => setView("funnel")}
+              className={`text-xs px-3 py-1.5 transition-colors ${view === "funnel" ? "bg-blue-600 text-white" : "bg-white text-gray-500 hover:bg-gray-50"}`}>
+              Funil
+            </button>
+            <button onClick={() => setView("bar")}
+              className={`text-xs px-3 py-1.5 transition-colors ${view === "bar" ? "bg-blue-600 text-white" : "bg-white text-gray-500 hover:bg-gray-50"}`}>
+              Barras
+            </button>
+          </div>
+        )}
       </div>
 
-      <div className={compact ? "flex justify-center" : "flex items-start gap-6"}>
+      {/* ── Bar chart view ── */}
+      {view === "bar" && (
+        <div className="space-y-2.5">
+          {allBarStages.map(s => {
+            const pct = (s.count / maxBarCount) * 100;
+            const pctTotal = total > 0 ? (s.count / total) * 100 : 0;
+            return (
+              <div key={s.key} className="flex items-center gap-3">
+                <span className="w-36 text-[11px] font-semibold text-gray-600 truncate text-right flex-shrink-0">{s.key}</span>
+                <div className="flex-1 relative h-7">
+                  {/* Track */}
+                  <div className="absolute inset-0 bg-slate-100 rounded-lg" />
+                  {/* Bar */}
+                  <div
+                    className="absolute inset-y-0 left-0 rounded-lg flex items-center px-2.5 transition-all duration-300"
+                    style={{ width: `${Math.max(pct, 2)}%`, background: `linear-gradient(90deg, ${s.from}, ${s.to})` }}
+                  >
+                    {pct > 18 && (
+                      <span className="text-[10px] font-bold text-white whitespace-nowrap">
+                        {formatNumber(s.count)}
+                      </span>
+                    )}
+                  </div>
+                  {/* Count outside bar when bar is narrow */}
+                  {pct <= 18 && (
+                    <span
+                      className="absolute top-1/2 -translate-y-1/2 text-[11px] font-semibold text-gray-700 whitespace-nowrap pl-1.5"
+                      style={{ left: `${Math.max(pct, 2)}%` }}
+                    >
+                      {formatNumber(s.count)}
+                    </span>
+                  )}
+                </div>
+                <div className="w-14 text-right flex-shrink-0">
+                  <span className="text-[10px] text-gray-400">{pctTotal.toFixed(1)}%</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Funnel view ── */}
+      {(view === "funnel" || compact) && <div className={compact ? "flex justify-center" : "flex items-start gap-6"}>
         <div className={compact ? undefined : "flex justify-center flex-1 min-w-0"}>
         <svg
           viewBox={`0 0 ${SVG_W} ${svgH}`}
@@ -213,7 +284,7 @@ export default function FunnelChart({ porSituacao, loading, compact }: Props) {
             })()}
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 }

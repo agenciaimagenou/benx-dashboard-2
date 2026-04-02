@@ -21,8 +21,9 @@ const PRESETS = [
 ];
 
 function getPresetRange(days: number): DateRange {
-  const end = new Date();
-  end.setHours(23, 59, 59, 0);
+  const today = new Date();
+  const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1, 23, 59, 59);
+  const end = days === 0 ? new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59) : yesterday;
   const start = new Date();
   if (days === 0) {
     start.setHours(0, 0, 0, 0);
@@ -30,7 +31,7 @@ function getPresetRange(days: number): DateRange {
     start.setDate(1);
     start.setHours(0, 0, 0, 0);
   } else {
-    start.setDate(start.getDate() - days);
+    start.setDate(today.getDate() - days);
     start.setHours(0, 0, 0, 0);
   }
   return { start, end };

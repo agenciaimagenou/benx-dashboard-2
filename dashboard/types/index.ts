@@ -57,9 +57,17 @@ export interface CRMLead {
 export interface CRMSummaryByEmpreendimento {
   empreendimento: string;
   total_leads: number;
+  total_leads_meta: number;
+  total_leads_google: number;
   atendimento: number;
+  atendimento_meta: number;
+  atendimento_google: number;
   reserva: number;
+  reserva_meta: number;
+  reserva_google: number;
   ganhos: number;
+  ganhos_meta: number;
+  ganhos_google: number;
   perdas: number;
   cancelados: number;
   conversao_rate: number;
@@ -87,6 +95,10 @@ export interface MergedData {
   crm_conversao: number;
   // Combined
   lead_conversion: number; // crm_leads / meta_leads
+  // Reservas table
+  res_ativas: number;  // reservas com situação != vendida
+  res_vendas: number;  // reservas com situação = vendida
+  res_emp_key: string; // matched empreendimento name in reservas table
 }
 
 export interface DateRange {

@@ -12,12 +12,13 @@ import {
   ChevronRight,
   LogOut,
   Search,
+  Home,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
 import { useRouter } from "next/navigation";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 
-export type PageId = "overview" | "meta" | "google" | "crm" | "analytics";
+export type PageId = "overview" | "meta" | "google" | "crm" | "analytics" | "reservas";
 
 interface NavItem {
   id: PageId;
@@ -32,6 +33,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "google",     label: "Google Ads",   icon: Search },
   { id: "crm",        label: "CRM / Leads",  icon: Users },
   { id: "analytics",  label: "Operacional",  icon: Clock },
+  { id: "reservas",   label: "Reservas",     icon: Home },
 ];
 
 interface Props {

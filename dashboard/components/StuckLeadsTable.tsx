@@ -19,8 +19,6 @@ interface StuckLead {
 interface Props {
   leads: StuckLead[];
   loading?: boolean;
-  threshold?: number;
-  onThresholdChange?: (t: number) => void;
 }
 
 function urgencyBadge(dias: number) {
@@ -51,7 +49,8 @@ function formatDate(s: string | null): string {
   return s;
 }
 
-export default function StuckLeadsTable({ leads, loading, threshold = 3, onThresholdChange }: Props) {
+export default function StuckLeadsTable({ leads, loading }: Props) {
+  const [threshold, setThreshold] = useState(3);
   const [page, setPage] = useState(0);
   const [filterSit, setFilterSit] = useState("Todos");
   const [filterEmp, setFilterEmp] = useState("Todos");
@@ -71,10 +70,11 @@ export default function StuckLeadsTable({ leads, loading, threshold = 3, onThres
       : <ChevronDown className="w-3 h-3 text-blue-500 flex-shrink-0" />;
   }
 
-  const situations = ["Todos", ...Array.from(new Set(leads.map((l) => l.situacao))).sort()];
-  const empreendimentos = ["Todos", ...Array.from(new Set(leads.map((l) => l.empreendimento))).sort()];
+  const thresholdedLeads = leads.filter(l => l.dias_sem_contato >= threshold);
+  const situations = ["Todos", ...Array.from(new Set(thresholdedLeads.map((l) => l.situacao))).sort()];
+  const empreendimentos = ["Todos", ...Array.from(new Set(thresholdedLeads.map((l) => l.empreendimento))).sort()];
 
-  const filtered = leads
+  const filtered = thresholdedLeads
     .filter((l) => {
       if (filterSit !== "Todos" && l.situacao !== filterSit) return false;
       if (filterEmp !== "Todos" && l.empreendimento !== filterEmp) return false;
@@ -133,7 +133,7 @@ export default function StuckLeadsTable({ leads, loading, threshold = 3, onThres
               {[3, 7, 15, 30].map((t) => (
                 <button
                   key={t}
-                  onClick={() => { onThresholdChange?.(t); setPage(0); }}
+                  onClick={() => { setThreshold(t); setPage(0); }}
                   className={cn(
                     "text-xs px-2 py-0.5 rounded",
                     threshold === t ? "bg-blue-600 text-white font-semibold" : "text-gray-500 hover:bg-gray-200"

@@ -403,6 +403,10 @@ function LoginContent() {
                   Criar nova conta
                 </button>
               </div>
+              <div className="flex flex-col items-center gap-1 pt-5">
+                <p className="text-xs text-gray-400">Desenvolvido por</p>
+                <Image src="/logo-imagenou-v2.png" alt="Imagenou" width={110} height={40} className="object-contain opacity-70" />
+              </div>
             </div>
           )}
 
@@ -476,11 +480,6 @@ function LoginContent() {
           )}
         </div>
 
-        {/* Imagenou logo bottom */}
-        <div className="flex flex-col items-start gap-1 pb-4">
-          <p className="text-xs text-gray-400">Desenvolvido por</p>
-          <Image src="/logo-imagenou-v2.png" alt="Imagenou" width={110} height={40} className="object-contain opacity-70" />
-        </div>
       </div>
     </div>
   );

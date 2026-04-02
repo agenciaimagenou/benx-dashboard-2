@@ -94,6 +94,7 @@ export interface StuckLeadEntry {
   imobiliaria: string;
   origem: string;
   ultima_origem: string;
+  midia_ultimo: string;
   data_cadastro: string | null;
   dias_parado: number;
   ultima_atualizacao: string | null;
@@ -118,6 +119,7 @@ export interface MotivoDescarteLead {
   imobiliaria: string;
   origem: string;
   ultima_origem: string;
+  midia_ultimo: string;
   data_cadastro: string | null;
 }
 
@@ -138,14 +140,23 @@ export interface CorretorParado {
   por_situacao: Record<string, number>;
 }
 
+export interface DescartadoEntry {
+  empreendimento: string;
+  imobiliaria: string;
+  origem: string;
+  midia_ultimo: string;
+}
+
 export interface AnalyticsResponse {
   tempo_por_situacao: TempoSituacao[];
   leads_parados: StuckLeadEntry[];
+  descartados: DescartadoEntry[];
   motivos_descarte: MotivoDescarte[];
   corretores_parados: CorretorParado[];
   corretores_total: Record<string, number>;
   imobiliarias_list: string[];
   ultimas_origens_list: string[];
+  midia_ultimo_list: string[];
   resumo_parados: {
     total_parados_3d: number;
     total_parados_7d: number;
@@ -166,7 +177,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Fetch leads with parallel pagination
-  const SELECT = `idlead, situacao, nome, empreendimento, empreendimento_primeiro, corretor, corretor_ultimo, imobiliaria, origem_nome, origem_ultimo, data_ultima_interacao, data_ultima_alteracao, data_cad, motivo_cancelamento, descricao_motivo_cancelamento, submotivo_cancelamento, vencido`;
+  const SELECT = `idlead, situacao, nome, empreendimento, empreendimento_primeiro, corretor, corretor_ultimo, imobiliaria, origem_nome, origem_ultimo, midia_ultimo, data_ultima_interacao, data_ultima_alteracao, data_cad, motivo_cancelamento, descricao_motivo_cancelamento, submotivo_cancelamento, vencido`;
   const PAGE = 1000;
 
   const { data: firstPage, count, error: firstError } = await supabaseAdmin
@@ -206,6 +217,7 @@ export async function GET(request: NextRequest) {
   > = {};
 
   const leadsParados: StuckLeadEntry[] = [];
+  const descartados: DescartadoEntry[] = [];
 
   for (const lead of filtered) {
     const sit = lead["situacao"] || "Não definido";
@@ -242,6 +254,16 @@ export async function GET(request: NextRequest) {
     if (diasParado >= 7) bySituacao[sit].parados7++;
     if (diasParado >= 15) bySituacao[sit].parados15++;
 
+    // Collect discarded leads (for filtered totalDescartado)
+    if (isDescartado(sit)) {
+      descartados.push({
+        empreendimento: (lead["empreendimento_primeiro"] || lead["empreendimento"] || "—") as string,
+        imobiliaria: normalizeImobiliaria(lead["imobiliaria"]),
+        origem: normalizeOrigem(lead["origem_nome"]),
+        midia_ultimo: String(lead["midia_ultimo"] || "").trim() || "Não definido",
+      });
+    }
+
     // Collect stuck leads (stagnant for at least threshold days, excluding discarded/cancelled)
     if (!isDescartado(sit) && diasSemContato >= stuckThreshold) {
       leadsParados.push({
@@ -253,6 +275,7 @@ export async function GET(request: NextRequest) {
         imobiliaria: normalizeImobiliaria(lead["imobiliaria"]),
         origem: normalizeOrigem(lead["origem_nome"]),
         ultima_origem: normalizeOrigem(lead["origem_ultimo"]),
+        midia_ultimo: String(lead["midia_ultimo"] || "").trim() || "Não definido",
         data_cadastro: lead["data_cad"] || null,
         dias_parado: diasParado,
         ultima_atualizacao: (lead["data_ultima_interacao"] as string) || (lead["data_ultima_alteracao"] as string) || null,
@@ -341,6 +364,10 @@ export async function GET(request: NextRequest) {
         parados_15dias: parados15,
       };
     })
+    .filter(({ situacao }) => {
+      const s = situacao.toLowerCase();
+      return !s.includes("descart") && !s.includes("venda") && !s.includes("ganho") && !s.includes("vencido");
+    })
     .sort((a, b) => b.count - a.count);
 
   // Sort stuck leads by days_parado desc
@@ -378,7 +405,7 @@ export async function GET(request: NextRequest) {
     const submotivo = lead["submotivo_cancelamento"] || "";
     const emp = (lead["empreendimento_primeiro"] || lead["empreendimento"] || "Não identificado") as string;
 
-    const key = `${motivo}|${descricao}|${emp}`;
+    const key = String(motivo);
     if (!descarteMap[key]) {
       descarteMap[key] = { motivo, descricao, submotivo, empreendimento: emp, count: 0, leads: [] };
     }
@@ -391,6 +418,7 @@ export async function GET(request: NextRequest) {
       imobiliaria: normalizeImobiliaria(lead["imobiliaria"]),
       origem: normalizeOrigem(lead["origem_nome"]),
       ultima_origem: normalizeOrigem(lead["origem_ultimo"]),
+      midia_ultimo: String(lead["midia_ultimo"] || "").trim() || "Não definido",
       data_cadastro: (lead["data_cad"] || null) as string | null,
     });
   }
@@ -431,21 +459,26 @@ export async function GET(request: NextRequest) {
   const corretoresTotal: Record<string, number> = {};
   const imobiliariasSet = new Set<string>();
   const ultimasOrigensSet = new Set<string>();
+  const midiaUltimoSet = new Set<string>();
   for (const lead of filtered) {
     const c = String(lead["corretor"] || "").split(" - ")[0].trim() || "Não atribuído";
     corretoresTotal[c] = (corretoresTotal[c] || 0) + 1;
     imobiliariasSet.add(normalizeImobiliaria(lead["imobiliaria"]));
     ultimasOrigensSet.add(normalizeOrigem(lead["origem_ultimo"]));
+    const mu = String(lead["midia_ultimo"] || "").trim();
+    if (mu && mu !== "Não definido") midiaUltimoSet.add(mu);
   }
 
   const response: AnalyticsResponse = {
     tempo_por_situacao: tempoPorSituacao,
     leads_parados: leadsParados.slice(0, 2000),
+    descartados,
     motivos_descarte: motivosDescarte,
     corretores_parados: corretoresParados,
     corretores_total: corretoresTotal,
     imobiliarias_list: Array.from(imobiliariasSet).sort(),
     ultimas_origens_list: Array.from(ultimasOrigensSet).sort(),
+    midia_ultimo_list: Array.from(midiaUltimoSet).sort(),
     resumo_parados: {
       total_parados_3d: totalParados3d,
       total_parados_7d: totalParados7d,

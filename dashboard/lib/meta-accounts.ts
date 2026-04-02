@@ -8,7 +8,7 @@ export const META_ACCOUNTS = [
   { id: "2680034202191481", name: "BENX | VOGEL MOEMA",           crmKey: "Vogel Moema" },
   { id: "3948963892083991", name: "BENX | RARO PERDIZES",         crmKey: "Raro Perdizes" },
   { id: "1378744583341873", name: "VIVA BENX | STAR CONCEIÇÃO",   crmKey: "Viva Benx Star Conceição" },
-  { id: "1211490900645170", name: "BENX | BROOKLIN NOVENTA",      crmKey: "Brooklin 90" },
+  { id: "1211490900645170", name: "BENX | BROOKLIN NOVENTA",      crmKey: "Condomínio Brooklin Noventa" },
   { id: "1035374268550912", name: "BENX | J329",                  crmKey: "J329 Itaim" },
   { id: "556058747572010",  name: "BENX | PLACE KLABIN",          crmKey: "Place Klabin" },
   { id: "977184104290400",  name: "BENX | SONETO CASEMIRO",       crmKey: "Soneto Casemiro" },

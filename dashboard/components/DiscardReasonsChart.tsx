@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { XCircle, X } from "lucide-react";
 import { cn, formatNumber } from "@/lib/utils";
 
@@ -184,33 +184,59 @@ export default function DiscardReasonsChart({ data, loading, totalLeads }: Props
               <thead>
                 <tr className="bg-slate-800">
                   <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-300 uppercase tracking-wider">Motivo</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-300 uppercase tracking-wider">Descrição</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-300 uppercase tracking-wider">Submotivo</th>
                   <th className="px-4 py-3 text-left text-[11px] font-bold text-slate-300 uppercase tracking-wider">Empreendimento</th>
                   <th className="px-4 py-3 text-right text-[11px] font-bold text-slate-300 uppercase tracking-wider">Qtde</th>
                   <th className="px-4 py-3 text-right text-[11px] font-bold text-slate-300 uppercase tracking-wider">%</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
-                {filtered.slice(0, 50).map((row, i) => (
-                  <tr
-                    key={i}
-                    className="hover:bg-red-50/40 transition-colors cursor-pointer"
-                    onClick={() => {
-                      const key = row.descricao || row.motivo || "Não informado";
-                      openModal(key);
-                    }}
-                  >
-                    <td className="px-4 py-2.5 text-xs text-gray-700 font-medium">{row.motivo || "—"}</td>
-                    <td className="px-4 py-2.5 text-xs text-gray-600">{row.descricao || "—"}</td>
-                    <td className="px-4 py-2.5 text-xs text-gray-500">{row.submotivo || "—"}</td>
-                    <td className="px-4 py-2.5 text-xs text-gray-600">{row.empreendimento}</td>
-                    <td className="px-4 py-2.5 text-right text-xs font-semibold text-red-600">{row.count}</td>
-                    <td className="px-4 py-2.5 text-right text-xs text-gray-400">
-                      {total > 0 ? ((row.count / total) * 100).toFixed(1) : 0}%
-                    </td>
-                  </tr>
-                ))}
+              <tbody className="divide-y divide-gray-100">
+                {chartData.filter(e => e.name !== "Sem motivo registrado").map((entry, i) => {
+                  // Group leads by empreendimento
+                  const empMap: Record<string, { cnt: number; leads: MotivoDescarteLead[] }> = {};
+                  for (const lead of entry.leads) {
+                    const emp = lead.empreendimento || "Não definido";
+                    if (!empMap[emp]) empMap[emp] = { cnt: 0, leads: [] };
+                    empMap[emp].cnt++;
+                    empMap[emp].leads.push(lead);
+                  }
+                  const empRows = Object.entries(empMap).sort((a, b) => b[1].cnt - a[1].cnt);
+                  return (
+                    <React.Fragment key={entry.name}>
+                      {/* Motivo header row */}
+                      <tr
+                        key={`motivo-${i}`}
+                        className="bg-slate-50 hover:bg-red-50/40 transition-colors cursor-pointer"
+                        onClick={() => openModal(entry.name)}
+                      >
+                        <td className="px-4 py-2.5 text-xs font-bold text-gray-800" colSpan={2}>
+                          <span className="inline-flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-full bg-red-100 text-red-600 text-[10px] font-black flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                            {entry.name}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-xs font-bold text-red-600">{formatNumber(entry.value)}</td>
+                        <td className="px-4 py-2.5 text-right text-xs text-gray-500 font-semibold">
+                          {total > 0 ? ((entry.value / total) * 100).toFixed(1) : 0}%
+                        </td>
+                      </tr>
+                      {/* Sub-rows per empreendimento */}
+                      {empRows.map(([emp, { cnt, leads: empLeads }]) => (
+                        <tr
+                          key={`${i}-${emp}`}
+                          className="hover:bg-red-50/30 transition-colors cursor-pointer"
+                          onClick={() => setModal({ title: `${entry.name} · ${emp}`, leads: empLeads })}
+                        >
+                          <td className="px-4 py-2 text-xs text-gray-400 pl-8">↳</td>
+                          <td className="px-4 py-2 text-xs text-gray-600">{emp}</td>
+                          <td className="px-4 py-2 text-right text-xs font-semibold text-red-500">{formatNumber(cnt)}</td>
+                          <td className="px-4 py-2 text-right text-xs text-gray-400">
+                            {entry.value > 0 ? ((cnt / entry.value) * 100).toFixed(1) : 0}%
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>

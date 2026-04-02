@@ -30,7 +30,6 @@ interface Props {
   leads: StuckLead[];
   corretoresTotal: Record<string, number>;
   loading?: boolean;
-  threshold?: number;
 }
 
 function urgencyColor(avg: number) {
@@ -86,7 +85,7 @@ interface ModalState {
 
 type SortKey = "corretor" | "total_parados" | "avg_dias" | "max_dias" | "totalLeads";
 
-export default function CorretoresParadosTable({ data, leads, corretoresTotal, loading, threshold = 3 }: Props) {
+export default function CorretoresParadosTable({ data, leads, corretoresTotal, loading }: Props) {
   const [modal, setModal] = useState<ModalState | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("total_parados");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -159,7 +158,7 @@ export default function CorretoresParadosTable({ data, leads, corretoresTotal, l
           <div>
             <h3 className="font-semibold text-gray-800 text-sm">Corretores — Leads Parados</h3>
             <p className="text-xs text-gray-400 mt-0.5">
-              Ranqueado por leads sem atualização ≥ {threshold} dias · clique na situação para ver os leads
+              Ranqueado por leads sem atualização · clique na situação para ver os leads
             </p>
           </div>
         </div>

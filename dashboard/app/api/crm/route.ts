@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
+// Normaliza nomes alternativos de empreendimentos para o nome oficial
+const EMP_ALIASES: Record<string, string> = {
+  "Brooklin 90": "Condomínio Brooklin Noventa",
+};
+
+function normalizeEmp(name: string): string {
+  return EMP_ALIASES[name] ?? name;
+}
+
 function normalizeImobiliaria(imob: unknown): string {
   const s = String(imob || "").trim();
   return s || "Sem imobiliária";
@@ -25,7 +34,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Fetch leads with parallel pagination
-  const SELECT = `idlead, situacao, nome, corretor, imobiliaria, data_cad, empreendimento, empreendimento_primeiro, reserva, origem_nome, origem_ultimo, score, novo, retorno`;
+  const SELECT = `idlead, situacao, nome, corretor, imobiliaria, data_cad, empreendimento, empreendimento_primeiro, empreendimento_ultimo, reserva, origem, origem_nome, origem_ultimo, midia_ultimo, score, novo, retorno`;
   const PAGE = 1000;
 
   const { data: firstPage, count, error: firstError } = await supabaseAdmin
@@ -67,9 +76,17 @@ export async function GET(request: NextRequest) {
   interface EmpEntry {
     empreendimento: string;
     total_leads: number;
+    total_leads_meta: number;
+    total_leads_google: number;
     atendimento: number;
+    atendimento_meta: number;
+    atendimento_google: number;
     reserva: number;
+    reserva_meta: number;
+    reserva_google: number;
     ganhos: number;
+    ganhos_meta: number;
+    ganhos_google: number;
     perdas: number;
     cancelados: number;
     conversao_rate: number;
@@ -87,15 +104,26 @@ export async function GET(request: NextRequest) {
   const byEmpreendimento: Record<string, EmpEntry> = {};
 
   for (const lead of filtered) {
-    const emp = (lead["empreendimento_primeiro"] || lead["empreendimento"] || "Não Identificado") as string;
+    const empPrimeiro = normalizeEmp((lead["empreendimento_primeiro"] || lead["empreendimento"] || "Não Identificado") as string);
+    const empUltimo = lead["empreendimento_ultimo"] ? normalizeEmp(lead["empreendimento_ultimo"] as string) : null;
+    const emps = Array.from(new Set([empPrimeiro, ...(empUltimo ? [empUltimo] : [])]));
 
+    for (const emp of emps) {
     if (!byEmpreendimento[emp]) {
       byEmpreendimento[emp] = {
         empreendimento: emp,
         total_leads: 0,
+        total_leads_meta: 0,
+        total_leads_google: 0,
         atendimento: 0,
+        atendimento_meta: 0,
+        atendimento_google: 0,
         reserva: 0,
+        reserva_meta: 0,
+        reserva_google: 0,
         ganhos: 0,
+        ganhos_meta: 0,
+        ganhos_google: 0,
         perdas: 0,
         cancelados: 0,
         conversao_rate: 0,
@@ -112,6 +140,19 @@ export async function GET(request: NextRequest) {
 
     const entry = byEmpreendimento[emp];
     entry.total_leads += 1;
+
+    // Count Meta-sourced leads (origem = FB/IG ou origem_ultimo = FB/IG)
+    const isMetaOrigem = (v: unknown) => {
+      const u = String(v || "").trim().toUpperCase();
+      return u === "FB" || u === "IG";
+    };
+    const isGoogleOrigem = (v: unknown) => { const u = String(v || "").trim().toUpperCase(); return u === "GO" || u === "SI" || u === "OU"; };
+    if (isMetaOrigem(lead["origem"]) || isMetaOrigem(lead["origem_ultimo"])) {
+      entry.total_leads_meta += 1;
+    }
+    if (isGoogleOrigem(lead["origem"]) || isGoogleOrigem(lead["origem_ultimo"])) {
+      entry.total_leads_google += 1;
+    }
 
     // Track origin frequency
     const origemLead = normalizeOrigem(lead["origem_nome"]);
@@ -133,11 +174,18 @@ export async function GET(request: NextRequest) {
     if (isTruthy(novoVal)) entry.novo_count += 1;
     if (isTruthy(retornoVal)) entry.retorno_count += 1;
 
+    const isMeta   = isMetaOrigem(lead["origem"])   || isMetaOrigem(lead["origem_ultimo"]);
+    const isGoogle = isGoogleOrigem(lead["origem"]) || isGoogleOrigem(lead["origem_ultimo"]);
+
     if (situacao.includes("atendimento") || situacao.includes("tentativa")) {
       entry.atendimento += 1;
+      if (isMeta)   entry.atendimento_meta   += 1;
+      if (isGoogle) entry.atendimento_google += 1;
     }
     if (reserva || situacao.includes("reserva")) {
       entry.reserva += 1;
+      if (isMeta)   entry.reserva_meta   += 1;
+      if (isGoogle) entry.reserva_google += 1;
       entry.reserva_leads.push({
         id: lead["idlead"] as number,
         nome: (lead["nome"] || "—") as string,
@@ -159,6 +207,8 @@ export async function GET(request: NextRequest) {
     }
     if (ganhos) {
       entry.ganhos += 1;
+      if (isMeta)   entry.ganhos_meta   += 1;
+      if (isGoogle) entry.ganhos_google += 1;
       entry.ganho_leads.push({
         id: lead["idlead"] as number,
         nome: (lead["nome"] || "—") as string,
@@ -172,6 +222,7 @@ export async function GET(request: NextRequest) {
       entry.perdas += 1;
       entry.cancelados += 1;
     }
+    } // fim for emps
   }
 
   // Calculate conversion rate + determine primary origem
@@ -209,6 +260,15 @@ export async function GET(request: NextRequest) {
     por_empreendimento: result,
     origens_list: [] as string[],
     ultimas_origens_list: [] as string[],
+    midia_ultimo_list: [] as string[],
+    por_midia_ultimo_emp: {} as Record<string, Record<string, number>>,
+    por_midia_ultimo_emp_sit: {} as Record<string, Record<string, Record<string, number>>>,
+    por_midia_ultimo_emp_novo: {} as Record<string, Record<string, number>>,
+    por_midia_ultimo_emp_retorno: {} as Record<string, Record<string, number>>,
+    por_midia_ultimo_origem: {} as Record<string, Record<string, number>>,
+    por_midia_ultimo_origem_emp: {} as Record<string, Record<string, Record<string, number>>>,
+    por_imobiliaria_origem: {} as Record<string, Record<string, number>>,
+    por_imobiliaria_midia_origem_emp: {} as Record<string, Record<string, Record<string, Record<string, number>>>>,
     total_novo: 0,
     total_retorno: 0,
   };
@@ -221,63 +281,103 @@ export async function GET(request: NextRequest) {
     const origem = normalizeOrigem(lead["origem_nome"]);
     totals.por_origem[origem] = (totals.por_origem[origem] || 0) + 1;
 
-    const empTotal = (lead["empreendimento_primeiro"] || lead["empreendimento"] || "Não Identificado") as string;
-    if (!totals.por_origem_emp[origem]) totals.por_origem_emp[origem] = {};
-    totals.por_origem_emp[origem][empTotal] = (totals.por_origem_emp[origem][empTotal] || 0) + 1;
+    const empTotalPrimeiro = normalizeEmp((lead["empreendimento_primeiro"] || lead["empreendimento"] || "Não Identificado") as string);
+    const empTotalUltimo = lead["empreendimento_ultimo"] ? normalizeEmp(lead["empreendimento_ultimo"] as string) : null;
+    const empTotais = Array.from(new Set([empTotalPrimeiro, ...(empTotalUltimo ? [empTotalUltimo] : [])]));
+    const empTotal = empTotalPrimeiro; // mantém compatibilidade para campos que não precisam de duplicação
 
     const ultimaOrigem = normalizeOrigem(lead["origem_ultimo"]);
     totals.por_ultima_origem[ultimaOrigem] = (totals.por_ultima_origem[ultimaOrigem] || 0) + 1;
+
+    const midiaUltimo = String(lead["midia_ultimo"] || "").trim() || "Não definido";
+
+    for (const et of empTotais) {
+    if (!totals.por_origem_emp[origem]) totals.por_origem_emp[origem] = {};
+    totals.por_origem_emp[origem][et] = (totals.por_origem_emp[origem][et] || 0) + 1;
+
     if (!totals.por_ultima_origem_emp[ultimaOrigem]) totals.por_ultima_origem_emp[ultimaOrigem] = {};
-    totals.por_ultima_origem_emp[ultimaOrigem][empTotal] = (totals.por_ultima_origem_emp[ultimaOrigem][empTotal] || 0) + 1;
+    totals.por_ultima_origem_emp[ultimaOrigem][et] = (totals.por_ultima_origem_emp[ultimaOrigem][et] || 0) + 1;
+
+    if (!totals.por_midia_ultimo_emp[midiaUltimo]) totals.por_midia_ultimo_emp[midiaUltimo] = {};
+    totals.por_midia_ultimo_emp[midiaUltimo][et] = (totals.por_midia_ultimo_emp[midiaUltimo][et] || 0) + 1;
+
+    if (et === empTotalPrimeiro) {
+      if (!totals.por_midia_ultimo_origem[midiaUltimo]) totals.por_midia_ultimo_origem[midiaUltimo] = {};
+      totals.por_midia_ultimo_origem[midiaUltimo][origem] = (totals.por_midia_ultimo_origem[midiaUltimo][origem] || 0) + 1;
+    }
+    // 3-way: midia × origem × empreendimento
+    if (!totals.por_midia_ultimo_origem_emp[midiaUltimo]) totals.por_midia_ultimo_origem_emp[midiaUltimo] = {};
+    if (!totals.por_midia_ultimo_origem_emp[midiaUltimo][origem]) totals.por_midia_ultimo_origem_emp[midiaUltimo][origem] = {};
+    totals.por_midia_ultimo_origem_emp[midiaUltimo][origem][et] = (totals.por_midia_ultimo_origem_emp[midiaUltimo][origem][et] || 0) + 1;
 
     const imob = normalizeImobiliaria(lead["imobiliaria"]);
     if (!totals.por_imobiliaria_emp[imob]) totals.por_imobiliaria_emp[imob] = {};
-    totals.por_imobiliaria_emp[imob][empTotal] = (totals.por_imobiliaria_emp[imob][empTotal] || 0) + 1;
+    totals.por_imobiliaria_emp[imob][et] = (totals.por_imobiliaria_emp[imob][et] || 0) + 1;
+    // 4-way: imob × midia × origem × empreendimento
+    if (!totals.por_imobiliaria_midia_origem_emp[imob]) totals.por_imobiliaria_midia_origem_emp[imob] = {};
+    if (!totals.por_imobiliaria_midia_origem_emp[imob][midiaUltimo]) totals.por_imobiliaria_midia_origem_emp[imob][midiaUltimo] = {};
+    if (!totals.por_imobiliaria_midia_origem_emp[imob][midiaUltimo][origem]) totals.por_imobiliaria_midia_origem_emp[imob][midiaUltimo][origem] = {};
+    totals.por_imobiliaria_midia_origem_emp[imob][midiaUltimo][origem][et] = (totals.por_imobiliaria_midia_origem_emp[imob][midiaUltimo][origem][et] || 0) + 1;
 
-    // Intersection aggregates: origem × imobiliária
-    if (!totals.por_origem_imobiliaria[origem]) totals.por_origem_imobiliaria[origem] = {};
-    totals.por_origem_imobiliaria[origem][imob] = (totals.por_origem_imobiliaria[origem][imob] || 0) + 1;
+    // Intersection aggregates: origem × imobiliária (only once per lead, not per emp)
+    if (et === empTotalPrimeiro) {
+      if (!totals.por_imobiliaria_origem[imob]) totals.por_imobiliaria_origem[imob] = {};
+      totals.por_imobiliaria_origem[imob][origem] = (totals.por_imobiliaria_origem[imob][origem] || 0) + 1;
 
-    if (!totals.por_ultima_origem_imobiliaria[ultimaOrigem]) totals.por_ultima_origem_imobiliaria[ultimaOrigem] = {};
-    totals.por_ultima_origem_imobiliaria[ultimaOrigem][imob] = (totals.por_ultima_origem_imobiliaria[ultimaOrigem][imob] || 0) + 1;
+      if (!totals.por_origem_imobiliaria[origem]) totals.por_origem_imobiliaria[origem] = {};
+      totals.por_origem_imobiliaria[origem][imob] = (totals.por_origem_imobiliaria[origem][imob] || 0) + 1;
+
+      if (!totals.por_ultima_origem_imobiliaria[ultimaOrigem]) totals.por_ultima_origem_imobiliaria[ultimaOrigem] = {};
+      totals.por_ultima_origem_imobiliaria[ultimaOrigem][imob] = (totals.por_ultima_origem_imobiliaria[ultimaOrigem][imob] || 0) + 1;
+    }
 
     const sitTotal = lead["situacao"] || "Não definido";
     if (!totals.por_imobiliaria_emp_sit[imob]) totals.por_imobiliaria_emp_sit[imob] = {};
-    if (!totals.por_imobiliaria_emp_sit[imob][empTotal]) totals.por_imobiliaria_emp_sit[imob][empTotal] = {};
-    totals.por_imobiliaria_emp_sit[imob][empTotal][sitTotal] = (totals.por_imobiliaria_emp_sit[imob][empTotal][sitTotal] || 0) + 1;
+    if (!totals.por_imobiliaria_emp_sit[imob][et]) totals.por_imobiliaria_emp_sit[imob][et] = {};
+    totals.por_imobiliaria_emp_sit[imob][et][sitTotal] = (totals.por_imobiliaria_emp_sit[imob][et][sitTotal] || 0) + 1;
 
     if (!totals.por_origem_emp_sit[origem]) totals.por_origem_emp_sit[origem] = {};
-    if (!totals.por_origem_emp_sit[origem][empTotal]) totals.por_origem_emp_sit[origem][empTotal] = {};
-    totals.por_origem_emp_sit[origem][empTotal][sitTotal] = (totals.por_origem_emp_sit[origem][empTotal][sitTotal] || 0) + 1;
+    if (!totals.por_origem_emp_sit[origem][et]) totals.por_origem_emp_sit[origem][et] = {};
+    totals.por_origem_emp_sit[origem][et][sitTotal] = (totals.por_origem_emp_sit[origem][et][sitTotal] || 0) + 1;
 
     if (!totals.por_ultima_origem_emp_sit[ultimaOrigem]) totals.por_ultima_origem_emp_sit[ultimaOrigem] = {};
-    if (!totals.por_ultima_origem_emp_sit[ultimaOrigem][empTotal]) totals.por_ultima_origem_emp_sit[ultimaOrigem][empTotal] = {};
-    totals.por_ultima_origem_emp_sit[ultimaOrigem][empTotal][sitTotal] = (totals.por_ultima_origem_emp_sit[ultimaOrigem][empTotal][sitTotal] || 0) + 1;
+    if (!totals.por_ultima_origem_emp_sit[ultimaOrigem][et]) totals.por_ultima_origem_emp_sit[ultimaOrigem][et] = {};
+    totals.por_ultima_origem_emp_sit[ultimaOrigem][et][sitTotal] = (totals.por_ultima_origem_emp_sit[ultimaOrigem][et][sitTotal] || 0) + 1;
+
+    if (!totals.por_midia_ultimo_emp_sit[midiaUltimo]) totals.por_midia_ultimo_emp_sit[midiaUltimo] = {};
+    if (!totals.por_midia_ultimo_emp_sit[midiaUltimo][et]) totals.por_midia_ultimo_emp_sit[midiaUltimo][et] = {};
+    totals.por_midia_ultimo_emp_sit[midiaUltimo][et][sitTotal] = (totals.por_midia_ultimo_emp_sit[midiaUltimo][et][sitTotal] || 0) + 1;
 
     // Track novo / retorno by imobiliária × empreendimento and origem × empreendimento
     const isTruthyTotal = (v: unknown) => v === true || v === 1 || v === "S" || v === "s" || v === "true" || v === "sim";
     if (isTruthyTotal(lead["novo"])) {
       if (!totals.por_imobiliaria_emp_novo[imob]) totals.por_imobiliaria_emp_novo[imob] = {};
-      totals.por_imobiliaria_emp_novo[imob][empTotal] = (totals.por_imobiliaria_emp_novo[imob][empTotal] || 0) + 1;
+      totals.por_imobiliaria_emp_novo[imob][et] = (totals.por_imobiliaria_emp_novo[imob][et] || 0) + 1;
       if (!totals.por_origem_emp_novo[origem]) totals.por_origem_emp_novo[origem] = {};
-      totals.por_origem_emp_novo[origem][empTotal] = (totals.por_origem_emp_novo[origem][empTotal] || 0) + 1;
+      totals.por_origem_emp_novo[origem][et] = (totals.por_origem_emp_novo[origem][et] || 0) + 1;
       if (!totals.por_ultima_origem_emp_novo[ultimaOrigem]) totals.por_ultima_origem_emp_novo[ultimaOrigem] = {};
-      totals.por_ultima_origem_emp_novo[ultimaOrigem][empTotal] = (totals.por_ultima_origem_emp_novo[ultimaOrigem][empTotal] || 0) + 1;
-      totals.total_novo += 1;
+      totals.por_ultima_origem_emp_novo[ultimaOrigem][et] = (totals.por_ultima_origem_emp_novo[ultimaOrigem][et] || 0) + 1;
+      if (!totals.por_midia_ultimo_emp_novo[midiaUltimo]) totals.por_midia_ultimo_emp_novo[midiaUltimo] = {};
+      totals.por_midia_ultimo_emp_novo[midiaUltimo][et] = (totals.por_midia_ultimo_emp_novo[midiaUltimo][et] || 0) + 1;
+      if (et === empTotalPrimeiro) totals.total_novo += 1;
     }
     if (isTruthyTotal(lead["retorno"])) {
       if (!totals.por_imobiliaria_emp_retorno[imob]) totals.por_imobiliaria_emp_retorno[imob] = {};
-      totals.por_imobiliaria_emp_retorno[imob][empTotal] = (totals.por_imobiliaria_emp_retorno[imob][empTotal] || 0) + 1;
+      totals.por_imobiliaria_emp_retorno[imob][et] = (totals.por_imobiliaria_emp_retorno[imob][et] || 0) + 1;
       if (!totals.por_origem_emp_retorno[origem]) totals.por_origem_emp_retorno[origem] = {};
-      totals.por_origem_emp_retorno[origem][empTotal] = (totals.por_origem_emp_retorno[origem][empTotal] || 0) + 1;
+      totals.por_origem_emp_retorno[origem][et] = (totals.por_origem_emp_retorno[origem][et] || 0) + 1;
       if (!totals.por_ultima_origem_emp_retorno[ultimaOrigem]) totals.por_ultima_origem_emp_retorno[ultimaOrigem] = {};
-      totals.por_ultima_origem_emp_retorno[ultimaOrigem][empTotal] = (totals.por_ultima_origem_emp_retorno[ultimaOrigem][empTotal] || 0) + 1;
-      totals.total_retorno += 1;
+      totals.por_ultima_origem_emp_retorno[ultimaOrigem][et] = (totals.por_ultima_origem_emp_retorno[ultimaOrigem][et] || 0) + 1;
+      if (!totals.por_midia_ultimo_emp_retorno[midiaUltimo]) totals.por_midia_ultimo_emp_retorno[midiaUltimo] = {};
+      totals.por_midia_ultimo_emp_retorno[midiaUltimo][et] = (totals.por_midia_ultimo_emp_retorno[midiaUltimo][et] || 0) + 1;
+      if (et === empTotalPrimeiro) totals.total_retorno += 1;
     }
+    } // fim for empTotais
   }
 
   totals.origens_list = Object.keys(totals.por_origem).sort();
   totals.ultimas_origens_list = Object.keys(totals.por_ultima_origem).sort();
+  totals.midia_ultimo_list = Object.keys(totals.por_midia_ultimo_emp).filter(k => k !== "Não definido").sort();
 
   // ── Override Visita Agendada / Visita Realizada from Visitas2 table ─────────
   const filteredLeadIds = new Set(filtered.map((l) => l["idlead"] as number));
@@ -305,17 +405,20 @@ export async function GET(request: NextRequest) {
   const visitasRealizadasByUltimaOrigemEmp: Record<string, Record<string, number>> = {};
   const visitasAgendadasByImobEmp: Record<string, Record<string, number>> = {};
   const visitasRealizadasByImobEmp: Record<string, Record<string, number>> = {};
+  const visitasAgendadasByMidiaUltimoEmp: Record<string, Record<string, number>> = {};
+  const visitasRealizadasByMidiaUltimoEmp: Record<string, Record<string, number>> = {};
 
   // Build lead lookup for origin/imobiliaria attribution
   const leadAttrMap = new Map(allLeads.map(l => [l["idlead"] as number, {
     origem:       normalizeOrigem(l["origem_nome"]),
     ultimaOrigem: normalizeOrigem(l["origem_ultimo"]),
     imob:         normalizeImobiliaria(l["imobiliaria"]),
+    midiaUltimo:  String(l["midia_ultimo"] || "").trim() || "Não definido",
   }]));
 
   for (const v of allVisitas) {
     if (!filteredLeadIds.has(v["idlead"] as number)) continue;
-    const emp = (v["nome_empreendimento"] || "Não Identificado") as string;
+    const emp = normalizeEmp((v["nome_empreendimento"] || "Não Identificado") as string);
     const sit = String(v["situacao"] || "").toLowerCase().trim();
     const isAgendada  = sit === "pendente" || sit === "em andamento";
     const isRealizada = sit === "concluída" || sit === "concluida";
@@ -334,6 +437,8 @@ export async function GET(request: NextRequest) {
       visitasAgendadasByOrigemEmp[attr.origem][emp]            = (visitasAgendadasByOrigemEmp[attr.origem][emp]            || 0) + 1;
       visitasAgendadasByUltimaOrigemEmp[attr.ultimaOrigem][emp]= (visitasAgendadasByUltimaOrigemEmp[attr.ultimaOrigem][emp]|| 0) + 1;
       visitasAgendadasByImobEmp[attr.imob][emp]                = (visitasAgendadasByImobEmp[attr.imob][emp]                || 0) + 1;
+      if (!visitasAgendadasByMidiaUltimoEmp[attr.midiaUltimo]) visitasAgendadasByMidiaUltimoEmp[attr.midiaUltimo] = {};
+      visitasAgendadasByMidiaUltimoEmp[attr.midiaUltimo][emp] = (visitasAgendadasByMidiaUltimoEmp[attr.midiaUltimo][emp] || 0) + 1;
     } else {
       if (!visitasRealizadasByOrigemEmp[attr.origem])       visitasRealizadasByOrigemEmp[attr.origem]       = {};
       if (!visitasRealizadasByUltimaOrigemEmp[attr.ultimaOrigem]) visitasRealizadasByUltimaOrigemEmp[attr.ultimaOrigem] = {};
@@ -341,6 +446,8 @@ export async function GET(request: NextRequest) {
       visitasRealizadasByOrigemEmp[attr.origem][emp]            = (visitasRealizadasByOrigemEmp[attr.origem][emp]            || 0) + 1;
       visitasRealizadasByUltimaOrigemEmp[attr.ultimaOrigem][emp]= (visitasRealizadasByUltimaOrigemEmp[attr.ultimaOrigem][emp]|| 0) + 1;
       visitasRealizadasByImobEmp[attr.imob][emp]                = (visitasRealizadasByImobEmp[attr.imob][emp]                || 0) + 1;
+      if (!visitasRealizadasByMidiaUltimoEmp[attr.midiaUltimo]) visitasRealizadasByMidiaUltimoEmp[attr.midiaUltimo] = {};
+      visitasRealizadasByMidiaUltimoEmp[attr.midiaUltimo][emp] = (visitasRealizadasByMidiaUltimoEmp[attr.midiaUltimo][emp] || 0) + 1;
     }
   }
 
@@ -370,7 +477,11 @@ export async function GET(request: NextRequest) {
     visitas_realizadas_por_origem_emp:       visitasRealizadasByOrigemEmp,
     visitas_agendadas_por_ultima_origem_emp: visitasAgendadasByUltimaOrigemEmp,
     visitas_realizadas_por_ultima_origem_emp:visitasRealizadasByUltimaOrigemEmp,
-    visitas_agendadas_por_imob_emp:          visitasAgendadasByImobEmp,
-    visitas_realizadas_por_imob_emp:         visitasRealizadasByImobEmp,
+    visitas_agendadas_por_imob_emp:               visitasAgendadasByImobEmp,
+    visitas_realizadas_por_imob_emp:              visitasRealizadasByImobEmp,
+    visitas_agendadas_por_midia_ultimo_emp:        visitasAgendadasByMidiaUltimoEmp,
+    visitas_realizadas_por_midia_ultimo_emp:       visitasRealizadasByMidiaUltimoEmp,
+    por_midia_ultimo_origem_emp:                   totals.por_midia_ultimo_origem_emp,
+    por_imobiliaria_midia_origem_emp:              totals.por_imobiliaria_midia_origem_emp,
   });
 }
