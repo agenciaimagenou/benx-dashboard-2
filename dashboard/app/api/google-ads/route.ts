@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
+// ── In-memory cache (survives across requests within the same server process) ──
+// TTL: 90 minutes — reduces Google Ads API calls from 19/load to 19/90min
+const CACHE_TTL_MS = 90 * 60 * 1000;
+interface CacheEntry { data: GoogleAdsAccount[]; cachedAt: number; key: string }
+const googleAdsCache = new Map<string, CacheEntry>();
+
 const CLIENT_ID       = process.env.GOOGLE_ADS_CLIENT_ID!;
 const CLIENT_SECRET   = process.env.GOOGLE_ADS_CLIENT_SECRET!;
 const REFRESH_TOKEN   = process.env.GOOGLE_ADS_REFRESH_TOKEN!;
@@ -104,6 +110,10 @@ async function queryAccount(
   if (!res.ok) {
     const err = await res.text();
     console.error(`Google Ads error for account ${accountId}:`, err);
+    // Propagate quota errors so the caller can return stale cache
+    if (res.status === 429 || err.includes("RESOURCE_EXHAUSTED")) {
+      throw new Error(`QUOTA_EXHAUSTED:${err}`);
+    }
     return [];
   }
 
@@ -144,16 +154,38 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "date_start e date_end são obrigatórios" }, { status: 400 });
   }
 
+  const cacheKey = `${dateStart}__${dateEnd}`;
+  const cached = googleAdsCache.get(cacheKey);
+  if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
+    return NextResponse.json(cached.data, {
+      headers: { "Cache-Control": "no-store", "X-Cache": "HIT" },
+    });
+  }
+
   let accessToken: string;
   try {
     accessToken = await getAccessToken();
   } catch (e) {
+    // On auth failure, return stale cache if available
+    if (cached) {
+      return NextResponse.json(cached.data, {
+        headers: { "Cache-Control": "no-store", "X-Cache": "STALE" },
+      });
+    }
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 
+  let quotaExhausted = false;
   const results = await Promise.all(
     ACCOUNTS.map(async (account) => {
-      const rows = await queryAccount(account.id, dateStart, dateEnd, accessToken);
+      let rows: CampaignRow[];
+      try {
+        rows = await queryAccount(account.id, dateStart, dateEnd, accessToken);
+      } catch (e) {
+        const msg = String(e);
+        if (msg.includes("QUOTA_EXHAUSTED")) quotaExhausted = true;
+        rows = [];
+      }
 
       let impressions  = 0, clicks = 0, cost = 0, conversions = 0, interactions = 0;
       const n = (v: string | number | undefined) => Number(v ?? 0);
@@ -208,6 +240,18 @@ export async function GET(request: NextRequest) {
   // Only include accounts with any spend or impressions
   const active = results.filter(r => r.spend > 0 || r.impressions > 0);
   active.sort((a, b) => b.spend - a.spend);
+
+  // If quota was exhausted and we have stale cache, return it
+  if (quotaExhausted && cached) {
+    return NextResponse.json(cached.data, {
+      headers: { "Cache-Control": "no-store", "X-Cache": "STALE-QUOTA" },
+    });
+  }
+
+  // Persist in cache only if we got real data (avoid caching empty results from quota errors)
+  if (active.length > 0) {
+    googleAdsCache.set(cacheKey, { data: active, cachedAt: Date.now(), key: cacheKey });
+  }
 
   return NextResponse.json(active, {
     headers: { "Cache-Control": "no-store" },
